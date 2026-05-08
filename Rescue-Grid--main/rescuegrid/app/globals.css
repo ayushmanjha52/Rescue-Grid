@@ -1,0 +1,246 @@
+@import "tailwindcss";
+
+:root {
+  /* Light Theme - UI Theme Overhaul */
+  --bg0: #FFFFFF;
+  --bg1: #FAFBFC;
+  --bg2: #F5F6F8;
+  --bg3: #EEF0F3;
+  --bg4: #E5E8EC;
+  --orange: #FF6B2B;
+  --orange-dim: rgba(255, 107, 43, 0.12);
+  --orange-glow: rgba(255, 107, 43, 0.25);
+  --red-alert: #FF3B3B;
+  --green-ok: #2ECC71;
+  --blue-accent: #3B8BFF;
+  --amber: #F5A623;
+  --text-primary: #1A1D21;
+  --text-secondary: #5A6270;
+  --text-dim: #8A93A3;
+  --border: rgba(255, 107, 43, 0.15);
+  --border-dim: rgba(0, 0, 0, 0.08);
+
+  /* Font families */
+  --font-display: 'Barlow Condensed', sans-serif;
+  --font-body: 'Barlow', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  
+  /* Utility Stack Fonts - High Readability */
+  --font-inter: 'Inter', sans-serif;
+  --font-ibm-mono: 'IBM Plex Mono', monospace;
+
+  /* Typography Scale - Enhanced for Readability */
+  --text-xs: 0.875rem;
+  --text-sm: 0.9375rem;
+  --text-base: 1.0625rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 1.875rem;
+  --text-3xl: 2.25rem;
+
+  /* Enhanced Contrast Colors */
+  --text-primary: #0D0F12;
+  --text-secondary: #3D4552;
+  --text-dim: #5A6575;
+}
+
+@theme inline {
+  /* Colors - Light Theme */
+  --color-void: var(--bg0);
+  --color-surface-1: var(--bg1);
+  --color-surface-2: var(--bg2);
+  --color-surface-3: var(--bg3);
+  --color-surface-4: var(--bg4);
+  --color-orange: var(--orange);
+  --color-orange-dim: var(--orange-dim);
+  --color-orange-glow: var(--orange-glow);
+  --color-alert: var(--red-alert);
+  --color-ops: var(--green-ok);
+  --color-intel: var(--blue-accent);
+  --color-caution: var(--amber);
+  --color-ink: var(--text-primary);
+  --color-muted: var(--text-secondary);
+  --color-dim: var(--text-dim);
+
+  /* Fonts */
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+  --font-mono: var(--font-mono);
+  --font-inter: var(--font-inter);
+  --font-ibm-mono: var(--font-ibm-mono);
+
+  /* Clip path utilities */
+  --clip-tactical: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+  --clip-tactical-sm: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+
+  /* Custom animations - SNAPPY STYLE */
+  --animate-fade-in-up: fade-in-up 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  --animate-bounce-subtle: bounce-subtle 2s ease-in-out infinite;
+  --animate-glow-pulse: glow-pulse 2s ease-in-out infinite;
+  --animate-slide-in: slide-in 0.15s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  --animate-critical-pulse: critical-pulse 1.5s ease-in-out infinite;
+  --animate-attention-bounce: attention-bounce 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  --animate-shimmer: shimmer 1s linear infinite;
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bounce-subtle {
+  0%, 100% {
+    transform: translateX(-50%) translateY(0);
+  }
+  50% {
+    transform: translateX(-50%) translateY(-4px);
+  }
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(249, 115, 22, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(249, 115, 22, 0.6);
+  }
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes critical-pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(255, 59, 59, 0.5);
+  }
+  50% {
+    transform: scale(1.03);
+    box-shadow: 0 0 16px 4px rgba(255, 59, 59, 0.3);
+  }
+}
+
+@keyframes attention-bounce {
+  0%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-6px); }
+  60% { transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: var(--bg0);
+    --foreground: var(--text-primary);
+  }
+}
+
+body {
+  background: var(--bg0);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+}
+
+/* Angular clip-path buttons */
+.btn-tactical {
+  clip-path: var(--clip-tactical);
+}
+
+.btn-tactical-sm {
+  clip-path: var(--clip-tactical-sm);
+}
+
+/* Message bubble entrance animation - SNAPPY */
+.message-bubble {
+  animation: fade-in-up 0.18s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-dim);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-dim);
+}
+
+/* Custom scrollbar for DMA panels */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: var(--bg2);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--border-dim);
+}
+
+/* Focus ring for accessibility */
+*:focus-visible {
+  outline: 2px solid var(--orange);
+  outline-offset: 2px;
+}
+
+/* Animation utilities - SNAPPY */
+.animate-critical-pulse {
+  animation: critical-pulse 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-attention-bounce {
+  animation: attention-bounce 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--bg3) 25%,
+    var(--bg4) 50%,
+    var(--bg3) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1s linear infinite;
+}
+
+/* Snappy transition utilities */
+.transition-snappy {
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.transition-color-snappy {
+  transition: color 0.12s cubic-bezier(0.4, 0, 0.2, 1), 
+              background-color 0.12s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.12s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.transition-transform-snappy {
+  transition: transform 0.12s cubic-bezier(0.4, 0, 0.2, 1);
+}
