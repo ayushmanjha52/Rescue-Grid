@@ -1,0 +1,157 @@
+
+<style>
+#erd svg { width: 100%; height: auto; }
+#erd svg.erDiagram .divider path { stroke-opacity: 0.5; }
+#erd svg.erDiagram .row-rect-odd path,
+#erd svg.erDiagram .row-rect-odd rect,
+#erd svg.erDiagram .row-rect-even path,
+#erd svg.erDiagram .row-rect-even rect { stroke: none !important; }
+</style>
+<div id="erd" style="padding: 8px 0"></div>
+<script type="module">
+import mermaid from 'https://esm.sh/mermaid@11/dist/mermaid.esm.min.mjs';
+const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+await document.fonts.ready;
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'base',
+  fontFamily: '"Anthropic Sans", sans-serif',
+  themeVariables: {
+    darkMode: dark,
+    fontSize: '13px',
+    fontFamily: '"Anthropic Sans", sans-serif',
+    lineColor: dark ? '#9c9a92' : '#73726c',
+    textColor: dark ? '#c2c0b6' : '#3d3d3a',
+    primaryColor: dark ? '#2a2a40' : '#eeedfe',
+    primaryBorderColor: dark ? '#534AB7' : '#534AB7',
+    primaryTextColor: dark ? '#c2c0b6' : '#26215C',
+    attributeBackgroundColorEven: dark ? '#1e1e2e' : '#f5f4fe',
+    attributeBackgroundColorOdd: dark ? '#252535' : '#ffffff',
+  },
+});
+
+const diagram = `erDiagram
+
+  VICTIM_REPORT {
+    uuid id PK
+    string phone_no
+    float latitude
+    float longitude
+    string city
+    string district
+    string situation
+    string custom_message
+    string urgency
+    string status
+    timestamp created_at
+  }
+
+  VOLUNTEER {
+    uuid id PK
+    string name
+    string mobile_no
+    string type
+    float latitude
+    float longitude
+    string skills
+    string equipment
+    string status
+    string push_token
+    timestamp last_seen
+  }
+
+  ASSIGNMENT {
+    uuid id PK
+    text task
+    string location_label
+    float latitude
+    float longitude
+    string urgency
+    string status
+    uuid assigned_to_volunteer FK
+    uuid assigned_to_taskforce FK
+    uuid victim_report_id FK
+    timestamp timer
+    timestamp created_at
+    timestamp updated_at
+  }
+
+  TASK_FORCE {
+    uuid id PK
+    string name
+    string dma_id
+    string status
+    uuid assignment_id FK
+    timestamp created_at
+  }
+
+  TASK_FORCE_MEMBER {
+    uuid id PK
+    uuid task_force_id FK
+    uuid volunteer_id FK
+    string member_type
+    string role
+  }
+
+  MESSAGE {
+    uuid id PK
+    text content
+    string sender_type
+    uuid sender_id
+    uuid task_force_id FK
+    uuid victim_report_id FK
+    uuid receiver_id FK
+    boolean is_flagged_for_dma
+    timestamp created_at
+    timestamp read_at
+  }
+
+  RESOURCE {
+    uuid id PK
+    string name
+    string type
+    float quantity
+    float low_stock_threshold
+    string unit
+    string owner_info
+    string location
+    timestamp updated_at
+  }
+
+  VICTIM_REPORT ||--o{ ASSIGNMENT : "triggers"
+  VICTIM_REPORT ||--o{ MESSAGE : "thread"
+  ASSIGNMENT }o--o| VOLUNTEER : "assigned to"
+  ASSIGNMENT }o--o| TASK_FORCE : "assigned to"
+  TASK_FORCE ||--|{ TASK_FORCE_MEMBER : "has members"
+  TASK_FORCE ||--o{ MESSAGE : "group room"
+  VOLUNTEER ||--|{ TASK_FORCE_MEMBER : "joins"
+  VOLUNTEER ||--o{ MESSAGE : "sends"
+`;
+
+const { svg } = await mermaid.render('erd-svg', diagram);
+document.getElementById('erd').innerHTML = svg;
+
+document.querySelectorAll('#erd svg.erDiagram .node').forEach(node => {
+  const firstPath = node.querySelector('path[d]');
+  if (!firstPath) return;
+  const d = firstPath.getAttribute('d');
+  const nums = d.match(/-?[\d.]+/g)?.map(Number);
+  if (!nums || nums.length < 8) return;
+  const xs = [nums[0], nums[2], nums[4], nums[6]];
+  const ys = [nums[1], nums[3], nums[5], nums[7]];
+  const x = Math.min(...xs), y = Math.min(...ys);
+  const w = Math.max(...xs) - x, h = Math.max(...ys) - y;
+  const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  rect.setAttribute('x', x); rect.setAttribute('y', y);
+  rect.setAttribute('width', w); rect.setAttribute('height', h);
+  rect.setAttribute('rx', '8');
+  for (const a of ['fill', 'stroke', 'stroke-width', 'class', 'style']) {
+    if (firstPath.hasAttribute(a)) rect.setAttribute(a, firstPath.getAttribute(a));
+  }
+  firstPath.replaceWith(rect);
+});
+
+document.querySelectorAll('#erd svg.erDiagram .row-rect-odd path, #erd svg.erDiagram .row-rect-even path').forEach(p => {
+  p.setAttribute('stroke', 'none');
+});
+</script>
