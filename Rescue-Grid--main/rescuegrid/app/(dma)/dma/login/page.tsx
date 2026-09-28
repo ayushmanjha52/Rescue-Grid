@@ -1,7 +1,5 @@
 'use client';
 
-export const dynamic = "force-dynamic";
-
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -23,17 +21,27 @@ export default function DmaLoginPage() {
 
     const supabase = createClient();
     const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
+      email: email.trim(),
       password,
     });
 
     if (signInError) {
-      setError(signInError.message);
+      setError(signInError.message === 'Invalid login credentials' ? 'Incorrect email or password.' : signInError.message);
       setLoading(false);
       return;
     }
 
-    router.push('/dma/dashboard');
+    // The server decides who is an operator (DMA_ALLOWED_EMAILS). Check before
+    // navigating so a non-operator isn't bounced straight back to this page.
+    const check = await fetch('/api/dma/counters', { cache: 'no-store' });
+    if (check.status === 403) {
+      await supabase.auth.signOut();
+      setError('This account is not authorized for the DMA command center.');
+      setLoading(false);
+      return;
+    }
+
+    router.replace('/dma/dashboard');
     router.refresh();
   };
 
@@ -75,7 +83,7 @@ export default function DmaLoginPage() {
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-[38px] text-gray-400 hover:text-orange transition-colors"
+              className="absolute right-3 top-[38px] text-gray-500 hover:text-orange transition-colors"
               aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
               {showPassword ? (

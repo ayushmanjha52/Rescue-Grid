@@ -1,22 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import AllocationCard from "./AllocationCard";
-
-interface Allocation {
-  id: string;
-  resource_id: string;
-  resource?: { name: string; type: string; unit: string };
-  assignment?: { task: string };
-  task_force?: { name: string };
-  volunteer?: { name: string };
-  quantity_allocated: number;
-  quantity_consumed: number;
-  quantity_returned: number;
-  status: string;
-  notes: string | null;
-  allocated_at: string;
-}
+import { useState, useEffect, useCallback } from "react";
+import AllocationCard, { type Allocation } from "./AllocationCard";
+import { useRealtimeSubscription } from "@/lib/realtime";
+import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
+import { ALLOCATION_STATUSES } from "@/lib/status";
 
 interface ResourceAllocationListProps {
   filterResourceId?: string;
@@ -26,100 +14,82 @@ export default function ResourceAllocationList({ filterResourceId }: ResourceAll
   const [allocations, setAllocations] = useState<Allocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("");
+  const [error, setError] = useState("");
 
-  useEffect(() => {
-    loadAllocations();
-  }, [filterResourceId]);
-
-  const loadAllocations = async () => {
-    setLoading(true);
+  const loadAllocations = useCallback(async () => {
     try {
-      let url = "/api/dma/resource/allocations";
       const params = new URLSearchParams();
       if (filterResourceId) params.append("resource_id", filterResourceId);
       if (statusFilter) params.append("status", statusFilter);
-      if (params.toString()) url += `?${params.toString()}`;
-
-      const res = await fetch(url);
+      const res = await fetch(`/api/dma/resource/allocations${params.toString() ? `?${params}` : ""}`, { cache: "no-store" });
       const data = await res.json();
       setAllocations(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error("Failed to load allocations:", err);
+    } catch {
       setAllocations([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterResourceId, statusFilter]);
+
+  useEffect(() => {
+    void loadAllocations();
+  }, [loadAllocations]);
+
+  const scheduleReload = useDebouncedCallback(() => void loadAllocations(), 300);
+  useRealtimeSubscription([
+    { table: "resource_allocation", onInsert: scheduleReload, onUpdate: scheduleReload, onDelete: scheduleReload },
+  ]);
 
   const handleStatusUpdate = async (id: string, status: string) => {
+    setError("");
     try {
       const res = await fetch(`/api/dma/resource/allocation/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       });
-
-      if (res.ok) {
-        setAllocations((prev) =>
-          prev.map((a) => (a.id === id ? { ...a, status } : a))
-        );
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || "Could not update allocation");
+        return;
       }
-    } catch (err) {
-      console.error("Failed to update status:", err);
+      await loadAllocations();
+    } catch {
+      setError("Network error — please try again");
     }
   };
 
-  const statuses = ["allocated", "in_use", "consumed", "returned", "lost"];
-
-  if (loading) {
-    return (
-      <div className="text-center py-8">
-        <p className="font-mono text-dim text-sm">Loading allocations...</p>
-      </div>
-    );
-  }
-
   return (
     <div>
-      <div className="flex gap-2 mb-4 flex-wrap">
-        <button
-          onClick={() => { setStatusFilter(""); loadAllocations(); }}
-          className={`px-3 py-1 text-[10px] font-mono uppercase tracking-wider border transition-colors ${
-            !statusFilter ? "bg-orange text-black border-orange" : "bg-transparent text-muted border-border-dim hover:border-orange"
-          }`}
-        >
-          ALL
-        </button>
-        {statuses.map((s) => (
+      <div className="flex gap-2 mb-4 flex-wrap" role="tablist">
+        {["", ...ALLOCATION_STATUSES].map((s) => (
           <button
-            key={s}
-            onClick={() => { setStatusFilter(s); loadAllocations(); }}
+            key={s || "all"}
+            role="tab"
+            aria-selected={statusFilter === s}
+            onClick={() => setStatusFilter(s)}
             className={`px-3 py-1 text-[10px] font-mono uppercase tracking-wider border transition-colors ${
-              statusFilter === s ? "bg-orange text-black border-orange" : "bg-transparent text-muted border-border-dim hover:border-orange"
+              statusFilter === s ? "bg-orange text-white border-orange" : "bg-transparent text-muted border-border-dim hover:border-orange"
             }`}
           >
-            {s.replace("_", " ")}
+            {s ? s.replace("_", " ") : "ALL"}
           </button>
         ))}
       </div>
 
-      {allocations.length === 0 ? (
+      {error && <p className="mb-3 font-mono text-[11px] text-alert" role="alert">{error}</p>}
+
+      {loading ? (
+        <p className="text-center py-8 font-mono text-dim text-sm">Loading allocations...</p>
+      ) : allocations.length === 0 ? (
         <div className="text-center py-12">
-          <p className="font-mono text-dim text-sm uppercase tracking-wider">
-            NO ALLOCATIONS FOUND
-          </p>
-          <p className="font-mono text-dim text-xs mt-2">
-            Resource allocations will appear here
-          </p>
+          <p className="font-mono text-dim text-sm uppercase tracking-wider">NO ALLOCATIONS FOUND</p>
+          <p className="font-mono text-dim text-xs mt-2">Resource allocations will appear here</p>
         </div>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-4 md:grid-cols-2">
           {allocations.map((allocation) => (
-            <AllocationCard
-              key={allocation.id}
-              allocation={allocation}
-              onStatusUpdate={handleStatusUpdate}
-            />
+            <AllocationCard key={allocation.id} allocation={allocation} onStatusUpdate={handleStatusUpdate} />
           ))}
         </div>
       )}

@@ -13,16 +13,22 @@ const SITUATION_TYPES = [
 
 const URGENCY_LEVELS = ["critical", "urgent", "moderate"] as const;
 
-interface Resource {
+export interface DashboardResource {
   id: string;
   name: string;
   type: string;
   quantity: number;
   low_stock_threshold: number;
-  unit: string;
-  location: string;
+  unit: string | null;
+  location: string | null;
   updated_at: string;
+  quantity_allocated?: number;
+  quantity_available?: number;
 }
+
+type Resource = DashboardResource;
+
+const available = (r: Resource) => r.quantity_available ?? r.quantity - (r.quantity_allocated ?? 0);
 
 interface LeftSidebarProps {
   filters: {
@@ -70,16 +76,12 @@ export default function LeftSidebar({
     [filters, onFiltersChange]
   );
 
-  const getBarColor = (resource: Resource) => {
-    const pct = (resource.quantity / (resource.low_stock_threshold * 2 || 1)) * 100;
-    if (resource.quantity < resource.low_stock_threshold) return "bg-red-500";
-    if (pct > 60) return "bg-green-500";
-    return "bg-amber-500";
-  };
+  const getBarPercent = (resource: Resource) =>
+    resource.quantity > 0 ? Math.min(100, (available(resource) / resource.quantity) * 100) : 0;
 
-  const getBarPercent = (resource: Resource) => {
-    const max = Math.max(resource.quantity, resource.low_stock_threshold * 2);
-    return Math.min(100, (resource.quantity / max) * 100);
+  const getBarColor = (resource: Resource) => {
+    if (available(resource) <= resource.low_stock_threshold) return "bg-red-500";
+    return getBarPercent(resource) > 60 ? "bg-green-500" : "bg-amber-500";
   };
 
   const handleEditStart = (resource: Resource) => {
@@ -97,7 +99,7 @@ export default function LeftSidebar({
   };
 
   return (
-    <aside className="w-[260px] shrink-0 bg-white border-r border-border-dim overflow-y-auto custom-scrollbar">
+    <aside className="w-full lg:w-[260px] shrink-0 bg-white border-t lg:border-t-0 lg:border-r border-border-dim lg:overflow-y-auto custom-scrollbar order-3 lg:order-1">
       <div className="p-4 space-y-6">
         <section>
           <h3 className="font-inter text-[11px] font-semibold text-dim uppercase tracking-[0.15em] mb-3">
@@ -225,8 +227,11 @@ export default function LeftSidebar({
             RESOURCE SUMMARY
           </h3>
           <div className="space-y-4">
+            {resources.length === 0 && (
+              <p className="font-ibm-mono text-[11px] text-dim">No resources logged yet.</p>
+            )}
             {resources.map((r) => {
-              const isLow = r.quantity < r.low_stock_threshold;
+              const isLow = available(r) <= r.low_stock_threshold;
               const barPercent = getBarPercent(r);
               const barColor = getBarColor(r);
 
@@ -257,8 +262,9 @@ export default function LeftSidebar({
                       <button
                         onClick={() => handleEditStart(r)}
                         className="font-ibm-mono text-[13px] font-medium text-ink hover:text-orange transition-colors"
+                        title="Click to edit total stock"
                       >
-                        {r.quantity} / {r.low_stock_threshold * 2} {r.unit}
+                        {available(r)} free / {r.quantity} {r.unit || ""}
                       </button>
                     )}
                   </div>

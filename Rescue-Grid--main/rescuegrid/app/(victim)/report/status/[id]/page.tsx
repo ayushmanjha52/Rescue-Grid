@@ -1,20 +1,21 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback, useLayoutEffect, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { RealtimeChannel } from "@supabase/supabase-js";
 import ChatScrollArea, { useChatScroll } from "@/components/ChatScrollArea";
 import StatusTimeline from "@/components/victim/StatusTimeline";
 import StatusBadge from "@/components/ui/StatusBadge";
+import { HELPLINE_NUMBER } from "@/lib/config";
+import HelplineLink from "@/components/victim/HelplineLink";
+import { REPORT_UPDATED_EVENT, reportTopic } from "@/lib/realtimeTopics";
+import { rememberReport } from "@/lib/myReportsStorage";
+import { reportReference } from "@/lib/status";
 
 type Report = {
   id: string;
-  phone_no: string;
-  latitude: number;
-  longitude: number;
-  city: string;
-  district: string;
+  city: string | null;
+  district: string | null;
   situation: string;
   custom_message: string | null;
   urgency: string;
@@ -26,24 +27,24 @@ type Message = {
   id: string;
   content: string;
   sender_type: string;
-  sender_id: string | null;
   victim_report_id: string;
   created_at: string;
   read_at: string | null;
 };
 
 const SITUATION_COLORS: Record<string, string> = {
-  food: "#2ECC71",
-  water: "#3B8BFF",
-  medical: "#F5A623",
-  rescue: "#FF3B3B",
-  shelter: "#A855F7",
-  missing: "#6B7280",
+  food: "#1E8449",
+  water: "#1F5FCC",
+  medical: "#B45309",
+  rescue: "#D32F2F",
+  shelter: "#7E22CE",
+  missing: "#4B5563",
 };
 
+const MAX_MESSAGES = 200;
+
 function formatTime(dateStr: string) {
-  const date = new Date(dateStr);
-  return date.toLocaleTimeString("en-IN", {
+  return new Date(dateStr).toLocaleTimeString("en-IN", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: true,
@@ -52,9 +53,13 @@ function formatTime(dateStr: string) {
 }
 
 function formatReportId(id: string, createdAt: string) {
-  const year = new Date(createdAt).getFullYear();
-  const shortId = id.slice(0, 4).toUpperCase();
-  return `REPORT #KL-${year}-${shortId}`;
+  return `REPORT #${reportReference(id, createdAt)}`;
+}
+
+function appendMessage(prev: Message[], message: Message) {
+  if (prev.some((m) => m.id === message.id)) return prev;
+  const updated = [...prev, message];
+  return updated.length > MAX_MESSAGES ? updated.slice(-MAX_MESSAGES) : updated;
 }
 
 export default function ReportStatusPage() {
@@ -63,112 +68,121 @@ export default function ReportStatusPage() {
   const reportId = params.id as string;
 
   const [report, setReport] = useState<Report | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [sendError, setSendError] = useState("");
 
-  const channelRef = useRef<RealtimeChannel | null>(null);
-  const supabase = createClient();
+  const scroll = useChatScroll();
+  const { notifyNewMessage, scrollToBottom } = scroll;
 
-  const {
-    containerRef,
-    isNearBottom,
-    newMessagesCount,
-    scrollToBottom,
-    handleScroll,
-    notifyNewMessage,
-    resetNewMessagesCount,
-  } = useChatScroll();
-
+  // Initial load
   useEffect(() => {
-    const fetchReport = async () => {
+    let cancelled = false;
+
+    const load = async () => {
       try {
-        const res = await fetch(`/api/victim/report/${reportId}`);
-        const data = await res.json();
-        
-        if (!res.ok) {
-          setError(data.error || "Report not found");
+        const [reportRes, messagesRes] = await Promise.all([
+          fetch(`/api/victim/report/${reportId}`),
+          fetch(`/api/victim/report/${reportId}/messages`),
+        ]);
+        const reportData = await reportRes.json();
+        const messagesData = await messagesRes.json().catch(() => ({}));
+        if (cancelled) return;
+
+        if (!reportRes.ok) {
+          setError(reportData.error || "Report not found");
         } else {
-          setReport(data.report);
+          rememberReport(reportId);
+          setReport(reportData.report);
+          setMessages(Array.isArray(messagesData.messages) ? messagesData.messages : []);
         }
-      } catch (err) {
-        console.error("Report fetch error:", err);
-        setError("Failed to load report");
+      } catch {
+        if (!cancelled) setError("Failed to load report. Check your connection.");
       }
-      setLoading(false);
+      if (!cancelled) setLoading(false);
     };
 
-    fetchReport();
-
-    channelRef.current = supabase
-      .channel(`victim-report-status-${reportId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "victim_report",
-          filter: `id=eq.${reportId}`,
-        },
-        (payload) => {
-          setReport(payload.new as Report);
-        }
-      )
-      .subscribe();
-
+    load();
     return () => {
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-      }
+      cancelled = true;
     };
-  }, [reportId, supabase]);
+  }, [reportId]);
 
+  const messagesRef = useRef<Message[]>([]);
+  useLayoutEffect(() => {
+    messagesRef.current = messages;
+  });
+
+  // Live updates. Victims can't read the database tables (privacy), so the
+  // server pings this report's broadcast topic whenever command replies or the
+  // status changes, and the page refetches through the API. A slow poll and a
+  // refresh on returning to the tab cover missed pings / flaky networks.
   useEffect(() => {
-    const supabase = createClient();
-    
-    const messagesChannel = supabase
-      .channel(`victim-messages-${reportId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "message",
-          filter: `victim_report_id=eq.${reportId}`,
-        },
-        (payload) => {
+    const refresh = () => {
+      fetch(`/api/victim/report/${reportId}`, { cache: "no-store" })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.report) setReport((prev) => (prev ? { ...prev, ...data.report } : data.report));
+        })
+        .catch(() => {});
+      fetch(`/api/victim/report/${reportId}/messages`, { cache: "no-store" })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (!Array.isArray(data?.messages)) return;
+          const fresh = (data.messages as Message[]).filter(
+            (m) => !messagesRef.current.some((known) => known.id === m.id)
+          );
+          if (fresh.length === 0) return;
+          setMessages((prev) => fresh.reduce(appendMessage, prev));
           notifyNewMessage();
-        }
-      )
+        })
+        .catch(() => {});
+    };
+
+    const supabase = createClient();
+    const channel = supabase
+      .channel(reportTopic(reportId))
+      .on("broadcast", { event: REPORT_UPDATED_EVENT }, refresh)
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(messagesChannel);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
     };
-  }, [reportId, notifyNewMessage, supabase]);
+    const interval = setInterval(onVisible, 30000);
+    document.addEventListener("visibilitychange", onVisible);
 
-  const handleSendMessage = async () => {
-    if (!newMessage.trim() || !report) return;
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+      supabase.removeChannel(channel);
+    };
+  }, [reportId, notifyNewMessage]);
+
+  const handleSendMessage = useCallback(async () => {
+    const content = newMessage.trim();
+    if (!content || !report || sending) return;
     setSending(true);
+    setSendError("");
     try {
       const res = await fetch("/api/victim/message", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          content: newMessage.trim(),
-          victim_report_id: reportId,
-        }),
+        body: JSON.stringify({ content, victim_report_id: reportId }),
       });
       if (!res.ok) throw new Error("Failed to send");
+      const saved = (await res.json()) as Message;
+      setMessages((prev) => appendMessage(prev, saved));
       setNewMessage("");
-      setTimeout(() => scrollToBottom('smooth'), 100);
+      requestAnimationFrame(() => scrollToBottom("smooth"));
     } catch {
-      setError("Failed to send message");
+      setSendError("Message not sent. Check your connection or call the helpline.");
     } finally {
       setSending(false);
     }
-  };
+  }, [newMessage, report, sending, reportId, scrollToBottom]);
 
   if (loading) {
     return (
@@ -196,7 +210,7 @@ export default function ReportStatusPage() {
     );
   }
 
-  const borderColor = SITUATION_COLORS[report.situation] || "#FF6B2B";
+  const borderColor = SITUATION_COLORS[report.situation] || "#C44A12";
 
   const header = (
     <div
@@ -204,9 +218,20 @@ export default function ReportStatusPage() {
       style={{ borderLeft: `3px solid ${borderColor}` }}
     >
       <div className="flex items-center justify-between mb-1">
-        <span className="font-mono text-[10px] text-orange uppercase tracking-wider">
-          {formatReportId(report.id, report.created_at)}
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => router.push("/report/my")}
+            className="text-muted hover:text-orange transition-colors"
+            aria-label="My reports"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <span className="font-mono text-[10px] text-orange uppercase tracking-wider">
+            {formatReportId(report.id, report.created_at)}
+          </span>
+        </div>
         <StatusBadge status={report.status} />
       </div>
       <div className="flex items-center gap-2">
@@ -230,49 +255,62 @@ export default function ReportStatusPage() {
       </div>
       <div className="mt-2">
         <p className="font-body text-[13px] text-muted">
-          📍 {report.city || "Unknown"}, {report.district || ""}
+          📍 {[report.city, report.district].filter(Boolean).join(", ") || "Location received"}
         </p>
         <p className="font-mono text-[10px] text-dim mt-0.5">
           Reported: {formatTime(report.created_at)} IST
         </p>
+        {report.custom_message && (
+          <div className="mt-2 p-2 bg-surface-2 border-l-2 border-orange">
+            <p className="font-mono text-[9px] text-dim uppercase tracking-wider mb-0.5">Your report / आपकी रिपोर्ट</p>
+            <p className="font-body text-[13px] text-ink whitespace-pre-wrap break-words">{report.custom_message}</p>
+          </div>
+        )}
       </div>
     </div>
   );
 
   const inputArea = (
     <div className="px-4 py-3 border-t border-border-dim bg-surface-1">
-      <div className="flex gap-2">
+      <form
+        className="flex gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void handleSendMessage();
+        }}
+      >
         <input
           type="text"
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
-          placeholder="Type a message..."
+          placeholder="Type a message to command..."
+          maxLength={2000}
+          aria-label="Message"
           className="flex-1 px-3 py-2 bg-surface-3 border-b border-border-dim border-l-2 border-l-orange font-body text-sm text-ink placeholder:text-dim focus:outline-none focus:bg-surface-4 focus:border-orange transition-colors"
         />
         <button
-          onClick={handleSendMessage}
+          type="submit"
           disabled={!newMessage.trim() || sending}
-          className="font-display font-semibold text-[11px] uppercase tracking-[0.1em] text-black bg-orange px-4 py-2 transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="font-display font-semibold text-[11px] uppercase tracking-[0.1em] text-white bg-orange px-4 py-2 transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ clipPath: "polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%)" }}
         >
           {sending ? "..." : "SEND →"}
         </button>
-      </div>
+      </form>
+      {sendError && <p className="mt-1 font-mono text-[10px] text-alert" role="alert">{sendError}</p>}
     </div>
   );
 
   const footerArea = (
-    <div className="px-4 py-3 border-t border-border-dim bg-surface-1">
-      <a
-        href={`tel:${process.env.NEXT_PUBLIC_TWILIO_SMS_NUMBER}`}
-        className="block w-full text-center font-[family-name:var(--font-ibm-mono)] font-medium text-[13px] uppercase tracking-[0.15em] text-black bg-orange py-3 transition-opacity hover:opacity-90"
+    <div className="px-4 py-3 border-t border-border-dim bg-surface-1" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+      <HelplineLink
+        className="block w-full text-center font-[family-name:var(--font-ibm-mono)] font-medium text-[13px] uppercase tracking-[0.15em] text-white bg-orange py-3 transition-opacity hover:opacity-90"
         style={{
           clipPath: "polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px))",
         }}
       >
-        📞 Call Helpline: {process.env.NEXT_PUBLIC_TWILIO_SMS_NUMBER}
-      </a>
+        📞 Call Helpline: {HELPLINE_NUMBER}
+      </HelplineLink>
     </div>
   );
 
@@ -281,8 +319,8 @@ export default function ReportStatusPage() {
       header={header}
       inputArea={inputArea}
       footerArea={footerArea}
-      isLoading={loading}
-      showJumpToBottom={true}
+      scroll={scroll}
+      showJumpToBottom
       className="min-h-screen"
     >
       <StatusTimeline status={report.status} createdAt={report.created_at} />
@@ -290,104 +328,45 @@ export default function ReportStatusPage() {
         <p className="font-mono text-[10px] text-dim uppercase tracking-[0.15em] text-center mb-4">
           — Updates from Command —
         </p>
-        <MessagesList reportId={reportId} isNearBottom={isNearBottom} onMessageReceived={notifyNewMessage} />
+        {messages.length === 0 ? (
+          <p className="font-mono text-[11px] text-dim text-center py-8">
+            No messages yet. DMA will respond soon.
+          </p>
+        ) : (
+          messages.map((msg) => {
+            const isDma = msg.sender_type === "dma";
+            return (
+              <div
+                key={msg.id}
+                className={`flex flex-col ${isDma ? "items-start" : "items-end"}`}
+              >
+                <div className="flex items-center gap-1 mb-1">
+                  <span className="font-mono text-[10px] text-dim uppercase">
+                    {isDma ? "DMA · COMMAND" : "You"}
+                  </span>
+                  <span className="font-mono text-[10px] text-dim">
+                    {formatTime(msg.created_at)}
+                  </span>
+                </div>
+                <div
+                  className={`max-w-[80%] px-3 py-2 text-sm font-body whitespace-pre-wrap break-words ${
+                    isDma
+                      ? "bg-orange-dim text-ink border-l-2 border-orange"
+                      : "bg-surface-3 text-ink"
+                  }`}
+                  style={{
+                    clipPath: isDma
+                      ? "polygon(0 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%)"
+                      : "polygon(0 0, 100% 0, 100% 100%, 6px 100%, 0 calc(100% - 6px))",
+                  }}
+                >
+                  {msg.content}
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
     </ChatScrollArea>
-  );
-}
-
-function MessagesList({ reportId, isNearBottom, onMessageReceived }: { reportId: string; isNearBottom: boolean; onMessageReceived: () => void }) {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const supabase = createClient();
-  const channelRef = useRef<RealtimeChannel | null>(null);
-
-  useEffect(() => {
-    const fetchMessages = async () => {
-      try {
-        const res = await fetch(`/api/victim/report/${reportId}/messages`);
-        const data = await res.json();
-        if (res.ok && data.messages) {
-          setMessages(data.messages);
-        }
-      } catch (err) {
-        console.error("Messages fetch error:", err);
-      }
-    };
-
-    fetchMessages();
-
-    channelRef.current = supabase
-      .channel(`messages-list-${reportId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "message",
-          filter: `victim_report_id=eq.${reportId}`,
-        },
-        (payload) => {
-          const newMsg = payload.new as Message;
-          setMessages(prev => {
-            if (prev.find(m => m.id === newMsg.id)) return prev;
-            const updated = [...prev, newMsg];
-            if (updated.length > 200) return updated.slice(-200);
-            return updated;
-          });
-          onMessageReceived();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-      }
-    };
-  }, [reportId, supabase, onMessageReceived]);
-
-  if (messages.length === 0) {
-    return (
-      <p className="font-mono text-[11px] text-dim text-center py-8">
-        No messages yet. DMA will respond soon.
-      </p>
-    );
-  }
-
-  return (
-    <>
-      {messages.map((msg) => {
-        const isDma = msg.sender_type === "dma";
-        return (
-          <div
-            key={msg.id}
-            className={`flex flex-col ${isDma ? "items-start" : "items-end"}`}
-          >
-            <div className="flex items-center gap-1 mb-1">
-              <span className="font-mono text-[10px] text-dim uppercase">
-                {isDma ? "DMA · COMMAND" : "You"}
-              </span>
-              <span className="font-mono text-[10px] text-dim">
-                {formatTime(msg.created_at)}
-              </span>
-            </div>
-            <div
-              className={`max-w-[80%] px-3 py-2 text-sm font-body ${
-                isDma
-                  ? "bg-orange-dim text-ink border-l-2 border-orange"
-                  : "bg-surface-3 text-ink"
-              }`}
-              style={{
-                clipPath: isDma
-                  ? "polygon(0 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%)"
-                  : "polygon(0 0, 100% 0, 100% 100%, 6px 100%, 0 calc(100% - 6px))",
-              }}
-            >
-              {msg.content}
-            </div>
-          </div>
-        );
-      })}
-    </>
   );
 }

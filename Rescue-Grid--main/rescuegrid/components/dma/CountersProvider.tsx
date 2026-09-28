@@ -1,8 +1,8 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
-import { createClient } from "@/lib/supabase/client";
-import type { RealtimeChannel } from "@supabase/supabase-js";
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, ReactNode } from "react";
+import { useRealtimeSubscription } from "@/lib/realtime";
+import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 
 interface LiveCounters {
   critical: number;
@@ -19,17 +19,14 @@ interface CountersContextType {
 const CountersContext = createContext<CountersContextType | undefined>(undefined);
 
 export function CountersProvider({ children }: { children: ReactNode }) {
-  const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
-  const channelRef = useRef<RealtimeChannel | null>(null);
   const [counters, setCounters] = useState<LiveCounters>({ critical: 0, active: 0, vols: 0 });
   const [loading, setLoading] = useState(true);
 
   const fetchCounters = useCallback(async () => {
     try {
-      const res = await fetch("/api/dma/counters");
+      const res = await fetch("/api/dma/counters", { cache: "no-store" });
       if (res.ok) {
-        const data = await res.json();
-        setCounters(data);
+        setCounters(await res.json());
       }
     } catch {
       // Silent fail - keep existing counters
@@ -39,66 +36,37 @@ export function CountersProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!supabaseRef.current) {
-      supabaseRef.current = createClient();
-    }
-    const supabase = supabaseRef.current;
-
-    fetchCounters();
-
-    channelRef.current = supabase
-      .channel(`dma-counters-global`)
-      .on(
-        'postgres_changes' as const,
-        {
-          event: '*',
-          schema: 'public',
-          table: 'victim_report',
-        },
-        () => {
-          fetchCounters();
-        }
-      )
-      .on(
-        'postgres_changes' as const,
-        {
-          event: '*',
-          schema: 'public',
-          table: 'assignment',
-        },
-        () => {
-          fetchCounters();
-        }
-      )
-      .on(
-        'postgres_changes' as const,
-        {
-          event: '*',
-          schema: 'public',
-          table: 'volunteer',
-        },
-        () => {
-          fetchCounters();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      if (channelRef.current && supabaseRef.current) {
-        supabaseRef.current.removeChannel(channelRef.current);
-      }
-    };
+    void fetchCounters();
   }, [fetchCounters]);
 
-  const refetch = useCallback(() => {
-    fetchCounters();
-  }, [fetchCounters]);
+  // Volunteer GPS pings arrive constantly — coalesce them into one refetch.
+  const scheduleRefetch = useDebouncedCallback(() => void fetchCounters(), 1000);
 
-  return (
-    <CountersContext.Provider value={{ counters, loading, refetch }}>
-      {children}
-    </CountersContext.Provider>
-  );
+  // Last status seen per volunteer. Supabase sends only the primary key as the
+  // "old" row on RLS tables, so status changes are detected against this map.
+  const volunteerStatuses = useRef(new Map<string, string | undefined>());
+
+  useRealtimeSubscription<{ id?: string; status?: string }>([
+    { table: "victim_report", onInsert: scheduleRefetch, onUpdate: scheduleRefetch, onDelete: scheduleRefetch },
+    { table: "assignment", onInsert: scheduleRefetch, onUpdate: scheduleRefetch, onDelete: scheduleRefetch },
+    {
+      table: "volunteer",
+      onInsert: scheduleRefetch,
+      onDelete: scheduleRefetch,
+      // Only status changes affect the counter, not location updates.
+      onUpdate: (row) => {
+        if (!row.id) return;
+        const known = volunteerStatuses.current;
+        const changed = !known.has(row.id) || known.get(row.id) !== row.status;
+        known.set(row.id, row.status);
+        if (changed) scheduleRefetch();
+      },
+    },
+  ]);
+
+  const value = useMemo(() => ({ counters, loading, refetch: fetchCounters }), [counters, loading, fetchCounters]);
+
+  return <CountersContext.Provider value={value}>{children}</CountersContext.Provider>;
 }
 
 export function useCounters() {

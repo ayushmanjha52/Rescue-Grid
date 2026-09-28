@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import type { RealtimeChannel } from '@supabase/supabase-js';
 
 export type TableName = 'victim_report' | 'assignment' | 'volunteer' | 'message' | 'task_force' | 'task_force_member' | 'resource' | 'resource_allocation';
 
@@ -10,64 +9,58 @@ export interface RealtimeConfig<T> {
   table: TableName;
   filter?: string;
   onInsert?: (payload: T) => void;
-  onUpdate?: (payload: T) => void;
+  /**
+   * `old` is the previous row as Supabase sends it. On tables with Row Level
+   * Security (all of ours) it only contains the primary key, so don't compare
+   * old and new values.
+   */
+  onUpdate?: (payload: T, old: Partial<T>) => void;
   onDelete?: (payload: T) => void;
 }
 
+let channelCounter = 0;
+
+/**
+ * Subscribes to Postgres changes for the given tables. The channel is only
+ * recreated when a table/filter changes (or `key` changes); handlers always
+ * see the latest props without resubscribing.
+ */
 export function useRealtimeSubscription<T = Record<string, unknown>>(
   configs: RealtimeConfig<T>[],
-  deps: React.DependencyList = []
+  key = ''
 ) {
-  const channelRef = useRef<RealtimeChannel | null>(null);
-  const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
+  const configsRef = useRef(configs);
+  useLayoutEffect(() => {
+    configsRef.current = configs;
+  });
 
-  const cleanup = useCallback(() => {
-    if (channelRef.current && supabaseRef.current) {
-      supabaseRef.current.removeChannel(channelRef.current);
-      channelRef.current = null;
-    }
-  }, []);
+  const signature = `${configs.map((c) => `${c.table}:${c.filter ?? ''}`).join('|')}#${key}`;
 
   useEffect(() => {
-    if (!supabaseRef.current) {
-      supabaseRef.current = createClient();
-    }
-    const supabase = supabaseRef.current;
-    cleanup();
+    const initial = configsRef.current;
+    if (initial.length === 0) return;
 
-    if (configs.length === 0) return;
+    const supabase = createClient();
+    let channel = supabase.channel(`realtime-${++channelCounter}-${Date.now()}`);
 
-    const channelName = `realtime-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    let channel = supabase.channel(channelName);
-
-    configs.forEach((config) => {
-      const { table, filter, onInsert, onUpdate, onDelete } = config;
-
+    initial.forEach(({ table, filter }, index) => {
       channel = channel.on(
-        'postgres_changes' as const,
-        {
-          event: '*',
-          schema: 'public',
-          table,
-          ...(filter ? { filter } : {}),
-        },
+        'postgres_changes',
+        { event: '*', schema: 'public', table, ...(filter ? { filter } : {}) },
         (payload) => {
-          if (payload.eventType === 'INSERT' && onInsert) {
-            onInsert(payload.new as T);
-          } else if (payload.eventType === 'UPDATE' && onUpdate) {
-            onUpdate(payload.new as T);
-          } else if (payload.eventType === 'DELETE' && onDelete) {
-            onDelete(payload.old as T);
-          }
+          const handlers = configsRef.current[index];
+          if (!handlers) return;
+          if (payload.eventType === 'INSERT') handlers.onInsert?.(payload.new as T);
+          else if (payload.eventType === 'UPDATE') handlers.onUpdate?.(payload.new as T, payload.old as Partial<T>);
+          else if (payload.eventType === 'DELETE') handlers.onDelete?.(payload.old as T);
         }
       );
     });
 
     channel.subscribe();
-    channelRef.current = channel;
 
-    return cleanup;
-  }, [cleanup, ...deps]);
-
-  return { cleanup };
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [signature]);
 }

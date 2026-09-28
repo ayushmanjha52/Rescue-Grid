@@ -1,62 +1,83 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import { requireDma } from '@/lib/auth/dma'
+import { haversineKm } from '@/lib/geo'
 
+const RINGS = [
+  { label: '0–20km', min: 0, max: 20 },
+  { label: '20–60km', min: 20, max: 60 },
+  { label: '60–100km', min: 60, max: 100 },
+]
+
+interface CoverageRow {
+  id: string
+  latitude: number
+  longitude: number
+  tier: number | null
+  volunteer_skills: { skill_definitions: { category: { code: string } | null } | null }[] | null
+}
+
+/** Skill-category coverage of active volunteers in distance rings around a point. */
 export async function GET(req: NextRequest) {
-  const supabase = createServiceClient()
+  const auth = await requireDma()
+  if (auth.response) return auth.response
+
   const { searchParams } = new URL(req.url)
-  const lat = parseFloat(searchParams.get('lat') ?? '0')
-  const lng = parseFloat(searchParams.get('lng') ?? '0')
+  const lat = Number(searchParams.get('lat'))
+  const lng = Number(searchParams.get('lng'))
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) {
+    return NextResponse.json({ error: 'lat and lng are required' }, { status: 400 })
+  }
 
-  const rings = [
-    { label: '0–20km',   min: 0,  max: 20  },
-    { label: '20–60km',  min: 20, max: 60  },
-    { label: '60–100km', min: 60, max: 100 },
-  ]
+  const supabase = createServiceClient()
+  const { data, error } = await supabase
+    .from('volunteer')
+    .select('id, latitude, longitude, tier, volunteer_skills(skill_definitions(category:skill_categories(code)))')
+    .eq('status', 'active')
+    .not('latitude', 'is', null)
+    .not('longitude', 'is', null)
 
-  const results = await Promise.all(rings.map(async (ring) => {
-    const { data: categoryStats } = await supabase
-      .from('volunteer')
-      .select(`
-        latitude,
-        longitude,
-        tier,
-        volunteer_skills!inner(skill_definitions!inner(category:skill_categories(code)))
-      `)
-      .eq('status', 'active')
-      .not('latitude', 'is', null)
-      .not('longitude', 'is', null)
+  if (error) {
+    console.error('Skill gaps error:', error)
+    return NextResponse.json({ error: 'Failed to compute coverage' }, { status: 500 })
+  }
 
-    const byCategory: Record<string, { count: number; maxTier: number; totalTier: number }> = {}
-
-    for (const v of (categoryStats || []) as any[]) {
-      const distKm = 6371 * 2 * Math.asin(
-        Math.sqrt(
-          Math.pow(Math.sin(((v.latitude - lat) * Math.PI) / 360), 2) +
-          Math.cos((lat * Math.PI) / 180) * Math.cos((v.latitude * Math.PI) / 180) *
-          Math.pow(Math.sin(((v.longitude - lng) * Math.PI) / 360), 2)
-        )
-      )
-
-      if (distKm < ring.min || distKm > ring.max) continue
-
-      const category = (v as any).volunteer_skills?.[0]?.skill_definitions?.category?.code || 'UNKNOWN'
-      if (!byCategory[category]) {
-        byCategory[category] = { count: 0, maxTier: 0, totalTier: 0 }
-      }
-      byCategory[category].count++
-      byCategory[category].totalTier += v.tier || 1
-      byCategory[category].maxTier = Math.max(byCategory[category].maxTier, v.tier || 1)
-    }
-
-    const coverage = Object.entries(byCategory).map(([category, stats]) => ({
-      category,
-      volunteer_count: stats.count,
-      max_tier: stats.maxTier,
-      avg_tier: Math.round((stats.totalTier / stats.count) * 100) / 100
-    }))
-
-    return { ring: ring.label, coverage }
+  const rings = RINGS.map((ring) => ({
+    ring: ring.label,
+    stats: {} as Record<string, { volunteers: Set<string>; maxTier: number; totalTier: number }>,
   }))
 
-  return NextResponse.json({ center: { lat, lng }, rings: results })
+  for (const v of (data || []) as unknown as CoverageRow[]) {
+    const distKm = haversineKm(lat, lng, v.latitude, v.longitude)
+    const ringIndex = RINGS.findIndex((r) => distKm >= r.min && distKm <= r.max)
+    if (ringIndex === -1) continue
+
+    const categories = new Set(
+      (v.volunteer_skills || [])
+        .map((vs) => vs.skill_definitions?.category?.code)
+        .filter((c): c is string => !!c)
+    )
+    if (categories.size === 0) categories.add('UNKNOWN')
+
+    const tier = v.tier || 1
+    for (const category of categories) {
+      const stats = (rings[ringIndex].stats[category] ||= { volunteers: new Set(), maxTier: 0, totalTier: 0 })
+      stats.volunteers.add(v.id)
+      stats.totalTier += tier
+      stats.maxTier = Math.max(stats.maxTier, tier)
+    }
+  }
+
+  return NextResponse.json({
+    center: { lat, lng },
+    rings: rings.map(({ ring, stats }) => ({
+      ring,
+      coverage: Object.entries(stats).map(([category, s]) => ({
+        category,
+        volunteer_count: s.volunteers.size,
+        max_tier: s.maxTier,
+        avg_tier: Math.round((s.totalTier / s.volunteers.size) * 100) / 100,
+      })),
+    })),
+  })
 }

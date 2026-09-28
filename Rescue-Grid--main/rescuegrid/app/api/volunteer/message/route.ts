@@ -1,45 +1,39 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { createClient } from '@supabase/supabase-js';
+import { createServiceClient } from '@/lib/supabase/service';
+import { isTaskForceMember, requireVolunteer } from '@/lib/auth/getVolunteer';
+import { cleanMessageContent, MAX_MESSAGE_LENGTH, withSenderNames } from '@/lib/messages';
+
+const MAX_HISTORY = 200;
 
 export async function GET(request: Request) {
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const auth = await requireVolunteer();
+    if (auth.response) return auth.response;
 
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('volunteer_session');
-    
-    if (!sessionCookie?.value) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const session = JSON.parse(sessionCookie.value);
-    const volunteerId = session.volunteer_id;
-    const { searchParams } = new URL(request.url);
-    const taskforceId = searchParams.get('taskforce_id');
-
+    const taskforceId = new URL(request.url).searchParams.get('taskforce_id');
     if (!taskforceId) {
       return NextResponse.json({ error: 'taskforce_id required' }, { status: 400 });
     }
 
+    const supabase = createServiceClient();
+    if (!(await isTaskForceMember(supabase, auth.volunteerId, taskforceId))) {
+      return NextResponse.json({ error: 'You are not a member of this task force' }, { status: 403 });
+    }
+
+    // Newest N, returned oldest-first for display.
     const { data: messages, error } = await supabase
       .from('message')
-      .select(`
-        *,
-        sender:volunteer(id, name, type)
-      `)
+      .select('*')
       .eq('task_force_id', taskforceId)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: false })
+      .limit(MAX_HISTORY);
 
     if (error) {
       console.error('Error fetching messages:', error);
       return NextResponse.json({ error: 'Database error' }, { status: 500 });
     }
 
-    return NextResponse.json(messages || []);
+    return NextResponse.json(await withSenderNames(supabase, (messages || []).reverse()));
   } catch (error) {
     console.error('Error in GET /api/volunteer/message:', error);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
@@ -48,25 +42,24 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const auth = await requireVolunteer();
+    if (auth.response) return auth.response;
+    const { volunteerId } = auth;
 
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('volunteer_session');
-    
-    if (!sessionCookie?.value) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const body = await request.json().catch(() => ({}));
+    const content = cleanMessageContent(body.content);
+    const taskForceId = body.task_force_id;
+
+    if (!content || !taskForceId) {
+      return NextResponse.json(
+        { error: `Message (max ${MAX_MESSAGE_LENGTH} chars) and task_force_id required` },
+        { status: 400 }
+      );
     }
 
-    const session = JSON.parse(sessionCookie.value);
-    const volunteerId = session.volunteer_id;
-    const body = await request.json();
-    const { content, task_force_id } = body;
-
-    if (!content || !task_force_id) {
-      return NextResponse.json({ error: 'Content and task_force_id required' }, { status: 400 });
+    const supabase = createServiceClient();
+    if (!(await isTaskForceMember(supabase, volunteerId, taskForceId))) {
+      return NextResponse.json({ error: 'You are not a member of this task force' }, { status: 403 });
     }
 
     const { data: message, error } = await supabase
@@ -75,7 +68,7 @@ export async function POST(request: Request) {
         content,
         sender_type: 'volunteer',
         sender_id: volunteerId,
-        task_force_id
+        task_force_id: taskForceId,
       })
       .select()
       .single();
@@ -85,7 +78,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Database error' }, { status: 500 });
     }
 
-    return NextResponse.json(message, { status: 201 });
+    const [withName] = await withSenderNames(supabase, [message]);
+    return NextResponse.json(withName, { status: 201 });
   } catch (error) {
     console.error('Error in POST /api/volunteer/message:', error);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });

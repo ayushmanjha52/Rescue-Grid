@@ -1,5 +1,9 @@
 import { createServiceClient } from "@/lib/supabase/service";
+import { requireDma } from "@/lib/auth/dma";
 import { NextResponse } from "next/server";
+import { reportReference } from "@/lib/status";
+
+type ServiceClient = ReturnType<typeof createServiceClient>;
 
 interface Channel {
   id: string;
@@ -11,189 +15,174 @@ interface Channel {
   unread_count: number;
   is_flagged: boolean;
   phone_no?: string;
+  situation?: string;
+  urgency?: string;
+  status?: string;
+  city?: string | null;
+  district?: string | null;
 }
 
-async function fetchVictimChannels(supabase: ReturnType<typeof createServiceClient>): Promise<Channel[]> {
-  const { data: victimReports, error: vrError } = await supabase
+interface MessageRow {
+  content: string;
+  created_at: string;
+  is_flagged_for_dma: boolean | null;
+  read_at: string | null;
+  sender_type: string;
+  sender_id: string | null;
+  receiver_id: string | null;
+  task_force_id: string | null;
+  victim_report_id: string | null;
+}
+
+const MESSAGE_FIELDS =
+  "content, created_at, is_flagged_for_dma, read_at, sender_type, sender_id, receiver_id, task_force_id, victim_report_id";
+
+function summarize(messages: MessageRow[], isIncoming: (m: MessageRow) => boolean) {
+  // messages are newest-first
+  const last = messages[0];
+  const unread = messages.filter((m) => isIncoming(m) && !m.read_at);
+  return {
+    last_message: last?.content,
+    last_message_time: last?.created_at,
+    unread_count: unread.length,
+    is_flagged: messages.some((m) => m.is_flagged_for_dma && (!m.read_at || m === last)),
+  };
+}
+
+function groupBy<T>(rows: T[], key: (row: T) => string | null | undefined) {
+  const groups: Record<string, T[]> = {};
+  for (const row of rows) {
+    const k = key(row);
+    if (k) (groups[k] ||= []).push(row);
+  }
+  return groups;
+}
+
+async function fetchVictimChannels(supabase: ServiceClient): Promise<Channel[]> {
+  const { data: reports, error } = await supabase
     .from("victim_report")
-    .select("id, phone_no, situation, city, district, created_at")
+    .select("id, phone_no, situation, urgency, status, city, district, created_at")
     .order("created_at", { ascending: false })
-    .limit(20);
+    .limit(100);
 
-  if (vrError || !victimReports) return [];
+  if (error || !reports || reports.length === 0) return [];
 
-  const channelPromises = victimReports.map(async (vr) => {
-    const [{ data: lastMsg }, { count }] = await Promise.all([
-      supabase
-        .from("message")
-        .select("content, created_at, is_flagged_for_dma")
-        .eq("victim_report_id", vr.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single(),
-      supabase
-        .from("message")
-        .select("*", { count: "exact", head: true })
-        .eq("victim_report_id", vr.id)
-        .is("read_at", null)
-        .neq("sender_type", "dma")
-    ]);
+  const { data: messages } = await supabase
+    .from("message")
+    .select(MESSAGE_FIELDS)
+    .in("victim_report_id", reports.map((r) => r.id))
+    .order("created_at", { ascending: false })
+    .limit(5000);
 
-    return {
-      id: vr.id,
-      type: "victim_thread" as const,
-      label: `REPORT #KL-${new Date(vr.created_at).getFullYear()}-${vr.id.slice(0, 4).toUpperCase()}`,
-      subtitle: `${vr.situation} · ${vr.city || vr.district || "Unknown"}`,
-      last_message: lastMsg?.content,
-      last_message_time: lastMsg?.created_at,
-      unread_count: count || 0,
-      is_flagged: lastMsg?.is_flagged_for_dma || false,
-    };
-  });
+  const byReport = groupBy((messages || []) as MessageRow[], (m) => m.victim_report_id);
 
-  return Promise.all(channelPromises);
+  return reports.map((vr) => ({
+    id: vr.id,
+    type: "victim_thread" as const,
+    label: `REPORT #${reportReference(vr.id, vr.created_at)}`,
+    subtitle: vr.city || vr.district || "Unknown location",
+    phone_no: vr.phone_no,
+    situation: vr.situation,
+    urgency: vr.urgency,
+    status: vr.status,
+    city: vr.city,
+    district: vr.district,
+    ...summarize(byReport[vr.id] || [], (m) => m.sender_type === "victim"),
+    // Reports without any messages still sort by when they came in.
+    last_message_time: byReport[vr.id]?.[0]?.created_at ?? vr.created_at,
+  }));
 }
 
-async function fetchTaskForceChannels(supabase: ReturnType<typeof createServiceClient>): Promise<Channel[]> {
-  const { data: taskForces, error: tfError } = await supabase
+async function fetchTaskForceChannels(supabase: ServiceClient): Promise<Channel[]> {
+  const { data: taskForces, error } = await supabase
     .from("task_force")
-    .select("id, name, status")
+    .select("id, name, status, members:task_force_member(volunteer_id)")
     .eq("status", "active")
     .order("created_at", { ascending: false });
 
-  if (tfError || !taskForces) return [];
+  if (error || !taskForces || taskForces.length === 0) return [];
 
-  const channelPromises = taskForces.map(async (tf) => {
-    const [{ data: lastMsg }, { count }, { data: members }] = await Promise.all([
-      supabase
-        .from("message")
-        .select("content, created_at, is_flagged_for_dma")
-        .eq("task_force_id", tf.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single(),
-      supabase
-        .from("message")
-        .select("*", { count: "exact", head: true })
-        .eq("task_force_id", tf.id)
-        .is("read_at", null)
-        .neq("sender_type", "dma"),
-      supabase
-        .from("task_force_member")
-        .select("volunteer_id")
-        .eq("task_force_id", tf.id)
-    ]);
+  const { data: messages } = await supabase
+    .from("message")
+    .select(MESSAGE_FIELDS)
+    .in("task_force_id", taskForces.map((tf) => tf.id))
+    .order("created_at", { ascending: false })
+    .limit(5000);
 
-    return {
-      id: tf.id,
-      type: "taskforce_room" as const,
-      label: `TF · ${tf.name}`,
-      subtitle: `${members?.length || 0} members`,
-      last_message: lastMsg?.content,
-      last_message_time: lastMsg?.created_at,
-      unread_count: count || 0,
-      is_flagged: lastMsg?.is_flagged_for_dma || false,
-    };
-  });
+  const byTaskForce = groupBy((messages || []) as MessageRow[], (m) => m.task_force_id);
 
-  return Promise.all(channelPromises);
+  return taskForces.map((tf) => ({
+    id: tf.id,
+    type: "taskforce_room" as const,
+    label: `TF · ${tf.name}`,
+    subtitle: `${(tf.members as unknown[] | null)?.length || 0} members`,
+    ...summarize(byTaskForce[tf.id] || [], (m) => m.sender_type === "volunteer"),
+  }));
 }
 
-async function fetchVolunteerChannels(supabase: ReturnType<typeof createServiceClient>): Promise<Channel[]> {
-  const { data: volunteers, error: volError } = await supabase
+async function fetchVolunteerChannels(supabase: ServiceClient): Promise<Channel[]> {
+  const { data: volunteers, error } = await supabase
     .from("volunteer")
     .select("id, name, type, status, mobile_no")
     .order("name", { ascending: true })
-    .limit(20);
+    .limit(1000);
 
-  if (volError || !volunteers) return [];
+  if (error || !volunteers || volunteers.length === 0) return [];
 
-  const volunteerIds = volunteers.map(v => v.id);
-  if (volunteerIds.length === 0) return [];
-
-  const { data: allMessages, error: msgError } = await supabase
+  const { data: messages } = await supabase
     .from("message")
-    .select("content, created_at, is_flagged_for_dma, read_at, receiver_id, sender_id, sender_type")
-    .or(`receiver_id.in.(${volunteerIds.join(',')}),sender_id.in.(${volunteerIds.join(',')})`)
+    .select(MESSAGE_FIELDS)
     .is("task_force_id", null)
     .is("victim_report_id", null)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(5000);
 
-  if (msgError || !allMessages) {
-    return volunteers.map(vol => ({
-      id: vol.id,
-      type: "direct" as const,
-      label: vol.name,
-      subtitle: `${vol.type || "Individual"} · ${vol.status === "active" ? "Ready" : "Offline"}`,
-      last_message: undefined,
-      last_message_time: undefined,
-      unread_count: 0,
-      is_flagged: false,
-      phone_no: vol.mobile_no,
-    }));
-  }
+  // A direct message belongs to the volunteer on the other side of DMA.
+  const byVolunteer = groupBy((messages || []) as MessageRow[], (m) =>
+    m.sender_type === "dma" ? m.receiver_id : m.sender_id
+  );
 
-  const msgByVolunteer: Record<string, typeof allMessages> = {};
-  allMessages.forEach(msg => {
-    const volunteerSet = new Set(volunteerIds);
-    if (msg.receiver_id && volunteerSet.has(msg.receiver_id)) {
-      if (!msgByVolunteer[msg.receiver_id]) msgByVolunteer[msg.receiver_id] = [];
-      msgByVolunteer[msg.receiver_id].push(msg);
-    }
-    if (msg.sender_id && volunteerSet.has(msg.sender_id)) {
-      if (!msgByVolunteer[msg.sender_id]) msgByVolunteer[msg.sender_id] = [];
-      msgByVolunteer[msg.sender_id].push(msg);
-    }
-  });
+  const statusLabel = (status: string) =>
+    status === "active" ? "Ready" : status === "on-mission" ? "On mission" : status === "standby" ? "Standby" : "Offline";
 
-  return volunteers.map(vol => {
-    const msgs = msgByVolunteer[vol.id] || [];
-    const lastMsg = msgs.length > 0 ? msgs[0] : null;
-    const unreadCount = msgs.filter(m => !m.read_at && m.sender_type !== "dma").length;
-
-    return {
-      id: vol.id,
-      type: "direct" as const,
-      label: vol.name,
-      subtitle: `${vol.type || "Individual"} · ${vol.status === "active" ? "Ready" : "Offline"}`,
-      last_message: lastMsg?.content,
-      last_message_time: lastMsg?.created_at,
-      unread_count: unreadCount,
-      is_flagged: lastMsg?.is_flagged_for_dma || false,
-      phone_no: vol.mobile_no,
-    };
-  });
+  return volunteers.map((vol) => ({
+    id: vol.id,
+    type: "direct" as const,
+    label: vol.name,
+    subtitle: `${vol.type || "Individual"} · ${statusLabel(vol.status)}`,
+    phone_no: vol.mobile_no,
+    status: vol.status,
+    ...summarize(byVolunteer[vol.id] || [], (m) => m.sender_type === "volunteer"),
+  }));
 }
 
 export async function GET() {
+  const auth = await requireDma();
+  if (auth.response) return auth.response;
+
   try {
     const supabase = createServiceClient();
-
-    console.log("Channels API: Starting parallel fetch...");
 
     const [victimChannels, tfChannels, volChannels] = await Promise.all([
       fetchVictimChannels(supabase),
       fetchTaskForceChannels(supabase),
-      fetchVolunteerChannels(supabase)
+      fetchVolunteerChannels(supabase),
     ]);
 
     const channels: Channel[] = [...victimChannels, ...tfChannels, ...volChannels];
 
     channels.sort((a, b) => {
-      if (a.is_flagged && !b.is_flagged) return -1;
-      if (!a.is_flagged && b.is_flagged) return 1;
-      if (a.unread_count > 0 && b.unread_count === 0) return -1;
-      if (a.unread_count === 0 && b.unread_count > 0) return 1;
+      if (a.is_flagged !== b.is_flagged) return a.is_flagged ? -1 : 1;
+      if ((a.unread_count > 0) !== (b.unread_count > 0)) return a.unread_count > 0 ? -1 : 1;
       const timeA = a.last_message_time ? new Date(a.last_message_time).getTime() : 0;
       const timeB = b.last_message_time ? new Date(b.last_message_time).getTime() : 0;
-      return timeB - timeA;
+      if (timeA !== timeB) return timeB - timeA;
+      return a.label.localeCompare(b.label);
     });
-
-    console.log("Channels API: Returning", channels.length, "channels");
 
     return NextResponse.json(channels);
   } catch (error) {
     console.error("Channels API: Unexpected error:", error);
-    return NextResponse.json({ error: "Failed to fetch channels", details: String(error) }, { status: 500 });
+    return NextResponse.json({ error: "Failed to fetch channels" }, { status: 500 });
   }
 }

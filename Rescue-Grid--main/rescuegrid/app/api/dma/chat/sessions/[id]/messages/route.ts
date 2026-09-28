@@ -1,52 +1,64 @@
+import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { requireDma } from '@/lib/auth/dma';
 
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireDma();
+  if (auth.response) return auth.response;
+
   try {
     const { id } = await params;
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
 
     // Verify session belongs to user
-    const { data: session, error: sessionError } = await supabase
+    const { data: session } = await supabase
       .from('chat_sessions')
       .select('id')
       .eq('id', id)
-      .eq('created_by', user.id)
-      .single();
+      .eq('created_by', auth.user.id)
+      .maybeSingle();
 
-    if (sessionError || !session) {
-      return new Response(JSON.stringify({ error: 'Session not found' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      });
+    if (!session) {
+      return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
     const { data, error } = await supabase
       .from('chat_messages')
-      .select('role, content, created_at')
+      .select('id, role, content, created_at')
       .eq('session_id', id)
+      .in('role', ['user', 'assistant'])
       .order('created_at', { ascending: true });
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
-    return Response.json(data);
+    return NextResponse.json(data || []);
   } catch (error) {
     console.error('Get messages error:', error);
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
+}
+
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const auth = await requireDma();
+  if (auth.response) return auth.response;
+
+  const { id } = await params;
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('chat_sessions')
+    .delete()
+    .eq('id', id)
+    .eq('created_by', auth.user.id);
+
+  if (error) {
+    console.error('Delete session error:', error);
+    return NextResponse.json({ error: 'Failed to delete briefing' }, { status: 500 });
+  }
+  return NextResponse.json({ success: true });
 }

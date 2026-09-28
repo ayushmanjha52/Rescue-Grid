@@ -16,7 +16,18 @@ const STEPS = [
   { id: 'resolved', label: 'Mission Completed', icon: CheckCircle2 },
 ];
 
-export default function StatusTimeline({ status, createdAt }: StatusTimelineProps) {
+export default function StatusTimeline({ status }: StatusTimelineProps) {
+  if (status === 'duplicate') {
+    return (
+      <div className="w-full px-4 py-4 bg-amber-50 border-y border-amber-100 text-center">
+        <p className="font-mono text-[11px] text-amber-700 uppercase tracking-wider">
+          This report was merged with an earlier report for the same emergency.
+        </p>
+        <p className="font-body text-[12px] text-amber-700 mt-1">Help is being coordinated on the original report.</p>
+      </div>
+    );
+  }
+
   const getStepIndex = (s: string) => {
     switch (s) {
       case 'open': return 0;
@@ -45,7 +56,6 @@ export default function StatusTimeline({ status, createdAt }: StatusTimelineProp
           const Icon = step.icon;
           const isCompleted = index < currentIndex;
           const isActive = index === currentIndex;
-          const isPending = index > currentIndex;
 
           return (
             <div key={step.id} className="relative z-10 flex flex-col items-center gap-2">
@@ -53,13 +63,13 @@ export default function StatusTimeline({ status, createdAt }: StatusTimelineProp
                 className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
                   isCompleted ? 'bg-orange text-white' : 
                   isActive ? 'bg-orange text-white animate-pulse shadow-lg shadow-orange/30' : 
-                  'bg-gray-100 text-gray-400 border border-gray-200'
+                  'bg-gray-100 text-gray-500 border border-gray-200'
                 }`}
               >
                 <Icon className="w-4 h-4" />
               </div>
               <span className={`font-mono text-[8px] uppercase tracking-wider text-center w-12 ${
-                isActive ? 'text-orange font-bold' : 'text-gray-400'
+                isActive ? 'text-orange font-bold' : 'text-gray-500'
               }`}>
                 {step.label}
               </span>

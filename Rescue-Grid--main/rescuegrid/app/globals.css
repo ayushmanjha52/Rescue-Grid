@@ -7,17 +7,17 @@
   --bg2: #F5F6F8;
   --bg3: #EEF0F3;
   --bg4: #E5E8EC;
-  --orange: #FF6B2B;
-  --orange-dim: rgba(255, 107, 43, 0.12);
-  --orange-glow: rgba(255, 107, 43, 0.25);
-  --red-alert: #FF3B3B;
-  --green-ok: #2ECC71;
-  --blue-accent: #3B8BFF;
-  --amber: #F5A623;
-  --text-primary: #1A1D21;
-  --text-secondary: #5A6270;
-  --text-dim: #8A93A3;
-  --border: rgba(255, 107, 43, 0.15);
+  /* Accent colours are dark enough for small text on white and white text on
+     them (WCAG AA, 4.5:1): orange 4.8, red 5.0, green 4.7, blue 5.9, amber 5.0. */
+  --orange: #C44A12;
+  --orange-dim: rgba(196, 74, 18, 0.12);
+  --orange-glow: rgba(196, 74, 18, 0.25);
+  --red-alert: #D32F2F;
+  --green-ok: #1E8449;
+  --blue-accent: #1F5FCC;
+  --amber: #B45309;
+  --purple: #7E22CE;
+  --border: rgba(196, 74, 18, 0.15);
   --border-dim: rgba(0, 0, 0, 0.08);
 
   /* Font families */
@@ -60,7 +60,12 @@
   --color-caution: var(--amber);
   --color-ink: var(--text-primary);
   --color-muted: var(--text-secondary);
+  --color-secondary: var(--text-secondary);
   --color-dim: var(--text-dim);
+  --color-blue-accent: var(--blue-accent);
+  --color-purple: var(--purple);
+  --color-border: var(--border);
+  --color-border-dim: var(--border-dim);
 
   /* Fonts */
   --font-display: var(--font-display);
@@ -145,26 +150,32 @@
   100% { background-position: 200% 0; }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: var(--bg0);
-    --foreground: var(--text-primary);
-  }
-}
-
 body {
   background: var(--bg0);
   color: var(--text-primary);
   font-family: var(--font-body);
 }
 
-/* Angular clip-path buttons */
-.btn-tactical {
-  clip-path: var(--clip-tactical);
+/* Angular clip-path buttons / panels */
+.btn-tactical,
+.clip-path-tactical {
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
 }
 
-.btn-tactical-sm {
-  clip-path: var(--clip-tactical-sm);
+.btn-tactical-sm,
+.clip-path-tactical-sm {
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+}
+
+/* Respect users who ask for less motion (attention animations, pulses). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* Message bubble entrance animation - SNAPPY */

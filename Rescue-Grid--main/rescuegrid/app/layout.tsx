@@ -1,7 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Barlow, Barlow_Condensed, JetBrains_Mono, Inter, IBM_Plex_Mono } from "next/font/google";
-import OperationalToast from "@/components/shared/OperationalToast";
-import { ClientWrapper } from "@/components/ClientWrapper";
+import { SITE_URL } from "@/lib/config";
 import "./globals.css";
 
 const barlow = Barlow({
@@ -34,9 +33,44 @@ const ibmPlexMono = IBM_Plex_Mono({
   weight: ["400", "500", "600"],
 });
 
+const DESCRIPTION =
+  "Report an emergency, send an SOS by SMS without internet, or join as a volunteer. RescueGrid connects people in need with disaster-response teams in real time.";
+
 export const metadata: Metadata = {
-  title: "RescueGrid",
-  description: "Tactical Disaster Management Platform",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "RescueGrid — Emergency help & disaster response",
+    template: "%s · RescueGrid",
+  },
+  description: DESCRIPTION,
+  applicationName: "RescueGrid",
+  openGraph: {
+    type: "website",
+    siteName: "RescueGrid",
+    title: "RescueGrid — Emergency help & disaster response",
+    description: DESCRIPTION,
+    locale: "en_IN",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "RescueGrid — Emergency help & disaster response",
+    description: DESCRIPTION,
+  },
+  appleWebApp: {
+    capable: true,
+    title: "RescueGrid",
+    statusBarStyle: "default",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#C44A12",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -50,8 +84,7 @@ export default function RootLayout({
       className={`${barlow.variable} ${barlowCondensed.variable} ${jetbrainsMono.variable} ${inter.variable} ${ibmPlexMono.variable}`}
     >
       <body className="min-h-full flex flex-col antialiased" suppressHydrationWarning>
-        <OperationalToast />
-        <ClientWrapper>{children}</ClientWrapper>
+        {children}
       </body>
     </html>
   );

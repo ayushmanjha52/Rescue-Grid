@@ -1,64 +1,70 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import { requireDma } from '@/lib/auth/dma'
+import { parseBBox } from '@/lib/geo'
 
-const DISTRICT_BOUNDS = {
-  lat_min: 23.62, lat_max: 23.92,
-  lng_min: 86.20, lng_max: 86.58,
+const MAP_STATUSES = ['active', 'standby', 'on-mission']
+
+interface VolunteerSkillRow {
+  skill_definitions: { code: string; name: string; category?: { code: string } | null } | null
 }
 
+interface MapVolunteerRow {
+  id: string
+  name: string
+  mobile_no: string
+  type: string | null
+  latitude: number
+  longitude: number
+  tier: number
+  status: string
+  last_seen: string | null
+  skills: string | null
+  equipment: string | null
+  volunteer_skills: VolunteerSkillRow[] | null
+}
+
+/**
+ * Viewport-scoped volunteers for the DMA map. At high zoom (≥12) pins are drawn
+ * individually, so fewer rows are needed; at low zoom rows feed the clusterer.
+ */
 export async function GET(req: NextRequest) {
-  const supabase = createServiceClient()
-  const { searchParams } = new URL(req.url)
-  const zoom = parseInt(searchParams.get('zoom') ?? '10')
-  const lat = parseFloat(searchParams.get('lat') ?? '0')
-  const lng = parseFloat(searchParams.get('lng') ?? '0')
-  const bbox = searchParams.get('bbox')
+  const auth = await requireDma()
+  if (auth.response) return auth.response
 
-  let minLat = lat - 1, maxLat = lat + 1
-  let minLng = lng - 1, maxLng = lng + 1
+  try {
+    const supabase = createServiceClient()
+    const { searchParams } = new URL(req.url)
+    const zoom = Number.parseInt(searchParams.get('zoom') ?? '10', 10)
+    const bbox = parseBBox(searchParams.get('bbox'))
+    const isPinZoom = Number.isFinite(zoom) && zoom >= 12
 
-  if (bbox) {
-    const [bMinLng, bMinLat, bMaxLng, bMaxLat] = bbox.split(',').map(parseFloat)
-    minLat = Math.max(bMinLat, DISTRICT_BOUNDS.lat_min)
-    maxLat = Math.min(bMaxLat, DISTRICT_BOUNDS.lat_max)
-    minLng = Math.max(bMinLng, DISTRICT_BOUNDS.lng_min)
-    maxLng = Math.min(bMaxLng, DISTRICT_BOUNDS.lng_max)
-  } else {
-    minLat = Math.max(minLat, DISTRICT_BOUNDS.lat_min)
-    maxLat = Math.min(maxLat, DISTRICT_BOUNDS.lat_max)
-    minLng = Math.max(minLng, DISTRICT_BOUNDS.lng_min)
-    maxLng = Math.min(maxLng, DISTRICT_BOUNDS.lng_max)
-  }
-
-  const statusFilter = zoom >= 12 
-    ? { in: 'active,standby' } 
-    : { in: 'active,standby,on-mission' }
-
-  if (zoom >= 12) {
-    const { data: volunteers } = await supabase
+    let query = supabase
       .from('volunteer')
       .select(`
-        id,
-        name,
-        mobile_no,
-        type,
-        latitude,
-        longitude,
-        tier,
-        status,
-        last_seen,
-        volunteer_skills(skill_definitions(code, name))
+        id, name, mobile_no, type, latitude, longitude, tier, status, last_seen, skills, equipment,
+        volunteer_skills(skill_definitions(code, name, category:skill_categories(code)))
       `)
-      .in('status', ['active', 'standby'])
-      .gte('latitude', minLat)
-      .lte('latitude', maxLat)
-      .gte('longitude', minLng)
-      .lte('longitude', maxLng)
-      .limit(50)
+      .in('status', MAP_STATUSES)
+      .not('latitude', 'is', null)
+      .not('longitude', 'is', null)
 
-    return NextResponse.json({
-      type: 'pins',
-      data: volunteers?.map((v: any) => ({
+    if (bbox) {
+      query = query
+        .gte('latitude', bbox.minLat)
+        .lte('latitude', bbox.maxLat)
+        .gte('longitude', bbox.minLng)
+        .lte('longitude', bbox.maxLng)
+    }
+
+    const { data, error } = await query.limit(isPinZoom ? 200 : 1000)
+    if (error) throw error
+
+    const volunteers = ((data || []) as unknown as MapVolunteerRow[]).map((v) => {
+      const normalized = (v.volunteer_skills || [])
+        .map((vs) => vs.skill_definitions)
+        .filter((sd): sd is NonNullable<typeof sd> => !!sd)
+      return {
         id: v.id,
         name: v.name,
         mobile_no: v.mobile_no,
@@ -68,45 +74,18 @@ export async function GET(req: NextRequest) {
         tier: v.tier,
         status: v.status,
         last_seen: v.last_seen,
-        skills: v.volunteer_skills?.map((vs: any) => vs.skill_definitions?.name).filter(Boolean) || []
-      })) || []
+        equipment: v.equipment,
+        // Prefer the normalized skill names; fall back to the free-text column.
+        skills: normalized.length > 0
+          ? normalized.map((sd) => sd.name)
+          : (v.skills || '').split(',').map((s) => s.trim()).filter(Boolean),
+        primary_category: normalized[0]?.category?.code || 'UNKNOWN',
+      }
     })
+
+    return NextResponse.json({ type: isPinZoom ? 'pins' : 'cluster_input', data: volunteers })
+  } catch (err) {
+    console.error('Volunteer map error:', err)
+    return NextResponse.json({ error: 'Failed to load volunteers' }, { status: 500 })
   }
-
-  const { data: volunteers } = await supabase
-    .from('volunteer')
-    .select(`
-      id,
-      name,
-      mobile_no,
-      type,
-      latitude,
-      longitude,
-      tier,
-      status,
-      last_seen,
-      volunteer_skills(skill_definitions(code, name, category:skill_categories(code)))
-    `)
-    .in('status', ['active', 'standby', 'on-mission'])
-    .gte('latitude', minLat)
-    .lte('latitude', maxLat)
-    .gte('longitude', minLng)
-    .lte('longitude', maxLng)
-    .limit(500)
-
-  const transformed = volunteers?.map((v: any) => ({
-    id: v.id,
-    name: v.name,
-    mobile_no: v.mobile_no,
-    type: v.type,
-    latitude: v.latitude,
-    longitude: v.longitude,
-    tier: v.tier,
-    status: v.status,
-    last_seen: v.last_seen,
-    skills: v.volunteer_skills?.map((vs: any) => vs.skill_definitions?.name).filter(Boolean) || [],
-    primary_category: v.volunteer_skills?.[0]?.skill_definitions?.category?.code || 'UNKNOWN'
-  }))
-
-  return NextResponse.json({ type: 'cluster_input', data: transformed || [] })
 }

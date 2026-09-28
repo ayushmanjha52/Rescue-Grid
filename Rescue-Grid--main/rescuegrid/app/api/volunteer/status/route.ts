@@ -1,25 +1,16 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { createClient } from '@supabase/supabase-js';
+import { createServiceClient } from '@/lib/supabase/service';
+import { requireVolunteer } from '@/lib/auth/getVolunteer';
+import { syncVolunteerMissionStatus } from '@/lib/assignments';
 
 export async function PATCH(request: Request) {
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const auth = await requireVolunteer();
+    if (auth.response) return auth.response;
+    const { volunteerId } = auth;
 
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('volunteer_session');
-    
-    if (!sessionCookie?.value) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const session = JSON.parse(sessionCookie.value);
-    const volunteerId = session.volunteer_id;
-    const body = await request.json();
-    const { status } = body;
+    const supabase = createServiceClient();
+    const { status } = await request.json().catch(() => ({}));
 
     if (!status || !['active', 'offline'].includes(status)) {
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
@@ -27,7 +18,7 @@ export async function PATCH(request: Request) {
 
     const { error } = await supabase
       .from('volunteer')
-      .update({ status })
+      .update({ status, last_seen: new Date().toISOString() })
       .eq('id', volunteerId);
 
     if (error) {
@@ -35,7 +26,13 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Database error' }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true });
+    // Coming back online while a mission is in progress → on-mission.
+    if (status === 'active') {
+      await syncVolunteerMissionStatus(supabase, [volunteerId]);
+    }
+
+    const { data } = await supabase.from('volunteer').select('status').eq('id', volunteerId).single();
+    return NextResponse.json({ success: true, status: data?.status ?? status });
   } catch (error) {
     console.error('Error in PATCH /api/volunteer/status:', error);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });

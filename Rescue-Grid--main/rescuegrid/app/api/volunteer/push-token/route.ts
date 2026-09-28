@@ -1,30 +1,29 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { createClient } from '@supabase/supabase-js';
+import { createServiceClient } from '@/lib/supabase/service';
+import { requireVolunteer } from '@/lib/auth/getVolunteer';
 
 export async function POST(request: Request) {
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const auth = await requireVolunteer();
+    if (auth.response) return auth.response;
+    const { volunteerId } = auth;
 
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('volunteer_session');
-    
-    if (!sessionCookie?.value) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const body = await request.json().catch(() => ({}));
+    // Accept the PushSubscription object (preferred) or a pre-serialized string.
+    let subscription = body.subscription ?? body.push_token;
+    if (typeof subscription === 'string') {
+      try {
+        subscription = JSON.parse(subscription);
+      } catch {
+        subscription = null;
+      }
     }
 
-    const session = JSON.parse(sessionCookie.value);
-    const volunteerId = session.volunteer_id;
-    const body = await request.json();
-    const { subscription } = body;
-
-    if (!subscription) {
-      return NextResponse.json({ error: 'Subscription required' }, { status: 400 });
+    if (!subscription || typeof subscription.endpoint !== 'string' || !subscription.keys) {
+      return NextResponse.json({ error: 'A valid push subscription is required' }, { status: 400 });
     }
 
+    const supabase = createServiceClient();
     const { error } = await supabase
       .from('volunteer')
       .update({ push_token: JSON.stringify(subscription) })
@@ -40,4 +39,13 @@ export async function POST(request: Request) {
     console.error('Error in POST /api/volunteer/push-token:', error);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
+}
+
+export async function DELETE() {
+  const auth = await requireVolunteer();
+  if (auth.response) return auth.response;
+
+  const supabase = createServiceClient();
+  await supabase.from('volunteer').update({ push_token: null }).eq('id', auth.volunteerId);
+  return NextResponse.json({ success: true });
 }

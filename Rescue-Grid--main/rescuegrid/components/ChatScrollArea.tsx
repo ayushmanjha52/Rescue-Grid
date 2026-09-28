@@ -1,6 +1,64 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback, ReactNode } from 'react';
+import { useState, useRef, useEffect, useCallback, ReactNode, RefObject } from 'react';
+
+const NEAR_BOTTOM_PX = 100;
+
+export interface ChatScrollController {
+  containerRef: RefObject<HTMLDivElement | null>;
+  isNearBottom: boolean;
+  newMessagesCount: number;
+  scrollToBottom: (behavior?: ScrollBehavior) => void;
+  handleScroll: () => void;
+  notifyNewMessage: () => void;
+  resetNewMessagesCount: () => void;
+}
+
+/**
+ * Scroll state for a chat pane: keeps the view pinned to the newest message
+ * while the reader is at the bottom, and counts unseen messages otherwise.
+ */
+export function useChatScroll(): ChatScrollController {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isNearBottomRef = useRef(true);
+  const [isNearBottom, setIsNearBottom] = useState(true);
+  const [newMessagesCount, setNewMessagesCount] = useState(0);
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    const el = containerRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior });
+  }, []);
+
+  const handleScroll = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX;
+    isNearBottomRef.current = nearBottom;
+    setIsNearBottom(nearBottom);
+    if (nearBottom) setNewMessagesCount(0);
+  }, []);
+
+  const notifyNewMessage = useCallback(() => {
+    if (isNearBottomRef.current) {
+      // Wait for the new message to render before scrolling.
+      requestAnimationFrame(() => scrollToBottom('smooth'));
+    } else {
+      setNewMessagesCount((prev) => prev + 1);
+    }
+  }, [scrollToBottom]);
+
+  const resetNewMessagesCount = useCallback(() => setNewMessagesCount(0), []);
+
+  return {
+    containerRef,
+    isNearBottom,
+    newMessagesCount,
+    scrollToBottom,
+    handleScroll,
+    notifyNewMessage,
+    resetNewMessagesCount,
+  };
+}
 
 interface ChatScrollAreaProps {
   header: ReactNode;
@@ -9,10 +67,11 @@ interface ChatScrollAreaProps {
   footerArea?: ReactNode;
   isLoading?: boolean;
   loadingComponent?: ReactNode;
-  emptyComponent?: ReactNode;
   showJumpToBottom?: boolean;
   autoScrollOnMount?: boolean;
   className?: string;
+  /** Pass a controller from useChatScroll() to drive scrolling from the parent. */
+  scroll?: ChatScrollController;
 }
 
 export default function ChatScrollArea({
@@ -22,53 +81,19 @@ export default function ChatScrollArea({
   footerArea,
   isLoading = false,
   loadingComponent,
-  emptyComponent,
   showJumpToBottom = true,
   autoScrollOnMount = true,
   className = '',
+  scroll,
 }: ChatScrollAreaProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [isNearBottom, setIsNearBottom] = useState(true);
-  const [newMessagesCount, setNewMessagesCount] = useState(0);
-  const [containerHeight, setContainerHeight] = useState(0);
-
-  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
-    messagesEndRef.current?.scrollIntoView({ behavior });
-  }, []);
-
-  const handleScroll = useCallback(() => {
-    if (!containerRef.current) return;
-    const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
-    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-    setIsNearBottom(distanceFromBottom < 100);
-    if (distanceFromBottom < 100) {
-      setNewMessagesCount(0);
-    }
-  }, []);
-
-  useEffect(() => {
-    const updateHeight = () => {
-      if (containerRef.current) {
-        const height = window.visualViewport?.height ?? window.innerHeight;
-        setContainerHeight(height);
-        containerRef.current.style.height = `${height}px`;
-      }
-    };
-
-    updateHeight();
-    window.visualViewport?.addEventListener('resize', updateHeight);
-    window.addEventListener('resize', updateHeight);
-
-    return () => {
-      window.visualViewport?.removeEventListener('resize', updateHeight);
-      window.removeEventListener('resize', updateHeight);
-    };
-  }, []);
+  const internal = useChatScroll();
+  const controller = scroll ?? internal;
+  const { containerRef, isNearBottom, newMessagesCount, scrollToBottom, handleScroll, resetNewMessagesCount } = controller;
 
   useEffect(() => {
     if (autoScrollOnMount && !isLoading) {
-      setTimeout(() => scrollToBottom('instant'), 100);
+      const id = setTimeout(() => scrollToBottom('instant'), 100);
+      return () => clearTimeout(id);
     }
   }, [isLoading, autoScrollOnMount, scrollToBottom]);
 
@@ -76,23 +101,14 @@ export default function ChatScrollArea({
     <div className="flex items-center justify-center h-full">
       <div className="flex flex-col items-center gap-2">
         <div className="w-6 h-6 border-2 border-orange border-t-transparent rounded-full animate-spin" />
-        <span className="font-mono text-[10px] text-gray-400">LOADING...</span>
-      </div>
-    </div>
-  );
-
-  const defaultEmpty = (
-    <div className="flex items-center justify-center h-full">
-      <div className="text-center">
-        <p className="font-display text-[14px] text-gray-700 mb-1">NO MESSAGES</p>
-        <p className="font-mono text-[10px] text-gray-400">Start the conversation</p>
+        <span className="font-mono text-[10px] text-gray-500">LOADING...</span>
       </div>
     </div>
   );
 
   return (
     <div
-      className={`flex flex-col bg-white ${className}`}
+      className={`relative flex flex-col bg-white ${className}`}
       style={{ height: '100dvh', overflow: 'hidden' }}
     >
       <div className="flex-shrink-0">
@@ -105,21 +121,14 @@ export default function ChatScrollArea({
         className="flex-1 overflow-y-auto"
         style={{ overscrollBehavior: 'contain' }}
       >
-        {isLoading ? (
-          loadingComponent || defaultLoading
-        ) : (
-          <>
-            {children}
-            <div ref={messagesEndRef} style={{ height: 1 }} />
-          </>
-        )}
+        {isLoading ? (loadingComponent || defaultLoading) : children}
       </div>
 
       {showJumpToBottom && !isNearBottom && newMessagesCount > 0 && (
         <button
           onClick={() => {
             scrollToBottom('smooth');
-            setNewMessagesCount(0);
+            resetNewMessagesCount();
           }}
           className="absolute bottom-32 left-1/2 -translate-x-1/2 bg-orange text-white px-4 py-2 rounded-full font-mono text-[11px] font-bold shadow-lg flex items-center gap-2 z-10"
         >
@@ -138,49 +147,4 @@ export default function ChatScrollArea({
       )}
     </div>
   );
-}
-
-export function useChatScroll() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [isNearBottom, setIsNearBottom] = useState(true);
-  const [newMessagesCount, setNewMessagesCount] = useState(0);
-
-  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
-    containerRef.current?.scrollTo({
-      top: containerRef.current.scrollHeight,
-      behavior,
-    });
-  }, []);
-
-  const handleScroll = useCallback(() => {
-    if (!containerRef.current) return;
-    const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
-    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-    setIsNearBottom(distanceFromBottom < 100);
-    if (distanceFromBottom < 100) {
-      setNewMessagesCount(0);
-    }
-  }, []);
-
-  const notifyNewMessage = useCallback(() => {
-    if (!isNearBottom) {
-      setNewMessagesCount(prev => prev + 1);
-    } else {
-      scrollToBottom('smooth');
-    }
-  }, [isNearBottom, scrollToBottom]);
-
-  const resetNewMessagesCount = useCallback(() => {
-    setNewMessagesCount(0);
-  }, []);
-
-  return {
-    containerRef,
-    isNearBottom,
-    newMessagesCount,
-    scrollToBottom,
-    handleScroll,
-    notifyNewMessage,
-    resetNewMessagesCount,
-  };
 }

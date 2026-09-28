@@ -15,7 +15,8 @@ export async function GET() {
     .order('id')
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('Skills lookup error:', error)
+    return NextResponse.json({ error: 'Failed to load skills' }, { status: 500 })
   }
 
   return NextResponse.json(categories || [])

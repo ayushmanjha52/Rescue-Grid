@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import type { RealtimeChannel } from '@supabase/supabase-js';
 import { LocationProvider } from '@/components/volunteer/LocationProvider';
+import { VolunteerSessionProvider, useVolunteerSession } from '@/components/volunteer/VolunteerSessionProvider';
+import { formatCountdown, useNow } from '@/hooks/useNow';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 interface ActiveAssignment {
   id: string;
@@ -16,129 +18,104 @@ interface ActiveAssignment {
   timer: string | null;
 }
 
-interface PendingCount {
-  queue: number;
+interface TaskForceSummary {
+  id: string;
 }
 
-export default function VolunteerLayout({ children }: { children: React.ReactNode }) {
+const AUTH_PAGES = ['/volunteer/login'];
+
+function VolunteerShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
-  const supabase = createClient();
-  const channelRef = useRef<RealtimeChannel | null>(null);
-  const [volunteerId, setVolunteerId] = useState<string | null>(null);
+  const { volunteer } = useVolunteerSession();
+  const volunteerId = volunteer?.id ?? null;
+  const now = useNow(1000);
+  const isOnline = useOnlineStatus();
+
   const [activeAssignment, setActiveAssignment] = useState<ActiveAssignment | null>(null);
-  const [pendingCount, setPendingCount] = useState<PendingCount>({ queue: 0 });
+  const [queueCount, setQueueCount] = useState(0);
   const [resourceCount, setResourceCount] = useState(0);
-  const [currentTime, setCurrentTime] = useState('');
-
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setCurrentTime(now.toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit',
-        hour12: false 
-      }));
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 60000);
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    const getVolunteerId = async () => {
-      const cookie = document.cookie.split(';').find(c => c.trim().startsWith('volunteer_session='));
-      if (cookie) {
-        try {
-          const session = JSON.parse(decodeURIComponent(cookie.split('=')[1]));
-          setVolunteerId(session.volunteer_id);
-        } catch {}
-      }
-    };
-    getVolunteerId();
-  }, []);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [taskForceIds, setTaskForceIds] = useState<string[]>([]);
+  const refetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
-      const [assignRes, queueRes, resourcesRes] = await Promise.all([
+      const [assignRes, queueRes, resourcesRes, messagesRes, tfRes] = await Promise.all([
         fetch('/api/volunteer/assignment/active'),
         fetch('/api/volunteer/assignment/queue'),
         fetch('/api/volunteer/resources'),
+        fetch('/api/volunteer/message/direct'),
+        fetch('/api/volunteer/taskforces'),
       ]);
 
-      if (assignRes.ok) {
-        const data = await assignRes.json();
-        setActiveAssignment(data);
-      }
-
+      if (assignRes.ok) setActiveAssignment(await assignRes.json());
       if (queueRes.ok) {
         const data = await queueRes.json();
-        setPendingCount({ queue: Array.isArray(data) ? data.length : 0 });
+        setQueueCount(Array.isArray(data) ? data.length : 0);
       }
-
       if (resourcesRes.ok) {
         const data = await resourcesRes.json();
-        const count = (data.mine?.length || 0) + (data.taskForce?.length || 0);
-        setResourceCount(count);
+        setResourceCount((data.mine?.length || 0) + (data.taskForce?.length || 0));
       }
-    } catch {}
+      if (messagesRes.ok) {
+        const data = await messagesRes.json();
+        setUnreadCount(
+          Array.isArray(data) ? data.filter((m: { sender_type: string; read_at: string | null }) => m.sender_type === 'dma' && !m.read_at).length : 0
+        );
+      }
+      if (tfRes.ok) {
+        const data = await tfRes.json();
+        const ids = Array.isArray(data) ? data.map((tf: TaskForceSummary) => tf.id).sort() : [];
+        setTaskForceIds((prev) => (prev.join() === ids.join() ? prev : ids));
+      }
+    } catch {
+      // Offline — badges keep their last values.
+    }
   }, []);
 
-  useEffect(() => {
-    if (volunteerId) {
-      fetchData();
-    }
-  }, [fetchData, volunteerId]);
+  const scheduleRefetch = useCallback((delay = 400) => {
+    if (refetchTimer.current) clearTimeout(refetchTimer.current);
+    refetchTimer.current = setTimeout(() => void fetchData(), delay);
+  }, [fetchData]);
 
+  // Refresh badges on login and on every navigation.
+  useEffect(() => {
+    if (volunteerId) scheduleRefetch(0);
+  }, [scheduleRefetch, volunteerId, pathname]);
+
+  // Live updates for this volunteer's missions, task forces, resources and inbox.
   useEffect(() => {
     if (!volunteerId) return;
+    const supabase = createClient();
+    const onChange = () => scheduleRefetch();
 
-    channelRef.current = supabase
-      .channel(`volunteer-layout-${volunteerId}`)
-      .on(
-        'postgres_changes' as const,
-        {
-          event: '*',
-          schema: 'public',
-          table: 'assignment',
-          filter: `assigned_to_volunteer=eq.${volunteerId}`,
-        },
-        () => {
-          fetchData();
-        }
-      )
-      .on(
-        'postgres_changes' as const,
-        {
-          event: '*',
-          schema: 'public',
-          table: 'resource_allocation',
-          filter: `volunteer_id=eq.${volunteerId}`,
-        },
-        () => {
-          fetchData();
-        }
-      )
-      .subscribe();
+    let channel = supabase
+      .channel(`volunteer-shell-${volunteerId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'assignment', filter: `assigned_to_volunteer=eq.${volunteerId}` }, onChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'resource_allocation', filter: `volunteer_id=eq.${volunteerId}` }, onChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'message', filter: `receiver_id=eq.${volunteerId}` }, onChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'task_force_member', filter: `volunteer_id=eq.${volunteerId}` }, onChange);
+
+    if (taskForceIds.length > 0) {
+      channel = channel
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'assignment', filter: `assigned_to_taskforce=in.(${taskForceIds.join(',')})` }, onChange)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'resource_allocation', filter: `task_force_id=in.(${taskForceIds.join(',')})` }, onChange);
+    }
+
+    channel.subscribe();
 
     return () => {
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-      }
+      supabase.removeChannel(channel);
     };
-  }, [volunteerId, supabase, fetchData]);
+  }, [volunteerId, taskForceIds, scheduleRefetch]);
 
-  const getTimerRemaining = (timer: string | null) => {
-    if (!timer) return null;
-    const end = new Date(timer).getTime();
-    const now = Date.now();
-    const diff = end - now;
-    if (diff <= 0) return '00:00';
-    const h = Math.floor(diff / 3600000);
-    const m = Math.floor((diff % 3600000) / 60000);
-    const s = Math.floor((diff % 60000) / 1000);
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-  };
+  useEffect(() => () => {
+    if (refetchTimer.current) clearTimeout(refetchTimer.current);
+  }, []);
+
+  const clock = now
+    ? new Date(now).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false })
+    : '';
 
   const tabs = [
     {
@@ -150,7 +127,7 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
           <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
         </svg>
       ),
-      badge: pendingCount.queue > 0 ? pendingCount.queue : null
+      badge: queueCount > 0 ? queueCount : null,
     },
     {
       href: '/volunteer/active',
@@ -162,7 +139,7 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
         </svg>
       ),
       badge: activeAssignment ? '●' : null,
-      badgeType: 'live' as const
+      badgeType: 'live' as const,
     },
     {
       href: '/volunteer/inbox',
@@ -172,7 +149,7 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
           <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
         </svg>
       ),
-      badge: null
+      badge: unreadCount > 0 ? unreadCount : null,
     },
     {
       href: '/volunteer/map',
@@ -184,7 +161,7 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
           <line x1="16" y1="6" x2="16" y2="22"/>
         </svg>
       ),
-      badge: null
+      badge: null,
     },
     {
       href: '/volunteer/resources',
@@ -196,7 +173,7 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
           <line x1="12" y1="22.08" x2="12" y2="12"/>
         </svg>
       ),
-      badge: resourceCount > 0 ? resourceCount : null
+      badge: resourceCount > 0 ? resourceCount : null,
     },
     {
       href: '/volunteer/profile',
@@ -207,45 +184,47 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
           <circle cx="12" cy="7" r="4"/>
         </svg>
       ),
-      badge: null
+      badge: null,
     },
   ];
 
-  const isActive = (href: string) => {
-    return pathname === href;
-  };
+  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  // These pages size themselves to the viewport and handle the bottom nav themselves.
+  const fullBleed = pathname === '/volunteer/map' || pathname === '/volunteer/inbox';
+  const countdown = formatCountdown(activeAssignment?.timer, now);
 
-  const hideNav = pathname === '/volunteer/login' || pathname === '/volunteer/login/verify';
-  const isAuthPage = pathname === '/volunteer/login' || pathname === '/volunteer/login/verify';
-
-  const content = (
+  return (
     <div className="min-h-screen bg-[#FFFFFF] flex flex-col">
       <div className="h-10 bg-[#FAFBFC] border-b border-[rgba(0,0,0,0.08)] flex items-center justify-between px-4">
-        <span className="font-[family-name:var(--font-mono)] text-[11px] text-[#5A6270] tracking-wider">{currentTime}</span>
-        <div className="flex items-center gap-2">
-          <span className="font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.15em]">
-            <span className="text-[#1A1D21]">RESCUE</span>
-            <span className="text-[#FF6B2B]">GRID</span>
-          </span>
-        </div>
-        <div className="w-12" />
+        <span className="font-[family-name:var(--font-mono)] text-[11px] text-[#5A6270] tracking-wider w-16">{clock}</span>
+        <Link
+          href="/volunteer/missions"
+          className="font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.15em]"
+          aria-label="RescueGrid missions"
+        >
+          <span className="text-[#1A1D21]">RESCUE</span>
+          <span className="text-[#C44A12]">GRID</span>
+        </Link>
+        <span className={`w-16 text-right font-mono text-[9px] uppercase tracking-wider ${isOnline ? 'text-[#1E8449]' : 'text-[#D32F2F]'}`}>
+          {isOnline ? '● Online' : '● Offline'}
+        </span>
       </div>
 
-      {activeAssignment && (
+      {activeAssignment && pathname !== '/volunteer/active' && (
         <Link
           href="/volunteer/active"
-          className="bg-[#FF6B2B] text-white flex items-center justify-between px-4 h-11 hover:bg-[#FF6B2B]/90 transition-colors cursor-pointer"
+          className="bg-[#C44A12] text-white flex items-center justify-between px-4 h-11 hover:bg-[#C44A12]/90 transition-colors cursor-pointer"
         >
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-            <span className="font-[family-name:var(--font-display)] text-[13px] font-semibold uppercase tracking-wide truncate max-w-[180px]">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-2 h-2 bg-white rounded-full animate-pulse shrink-0" />
+            <span className="font-[family-name:var(--font-display)] text-[13px] font-semibold uppercase tracking-wide truncate">
               {activeAssignment.task}
             </span>
           </div>
-          <div className="flex items-center gap-3">
-            {activeAssignment.timer && (
+          <div className="flex items-center gap-3 shrink-0">
+            {countdown && (
               <span className="font-[family-name:var(--font-mono)] text-[11px] text-white/80">
-                {getTimerRemaining(activeAssignment.timer)}
+                {countdown}
               </span>
             )}
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -255,54 +234,59 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
         </Link>
       )}
 
-      <main className={`flex-1 overflow-y-auto ${hideNav ? '' : 'pb-20'}`}>{children}</main>
+      <main className={`flex-1 overflow-y-auto ${fullBleed ? '' : 'pb-20'}`}>{children}</main>
 
-      {!hideNav && (
-      <nav className="fixed bottom-0 left-0 right-0 h-[68px] bg-white border-t border-[rgba(0,0,0,0.08)] flex items-stretch shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+      <nav className="fixed bottom-0 left-0 right-0 h-[68px] bg-white border-t border-[rgba(0,0,0,0.08)] flex items-stretch shadow-[0_-4px_20px_rgba(0,0,0,0.08)] z-40" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         {tabs.map((tab) => {
           const active = isActive(tab.href);
           return (
             <Link
               key={tab.href}
               href={tab.href}
+              aria-current={active ? 'page' : undefined}
               className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all relative ${
-                active ? 'text-[#FF6B2B]' : 'text-[#5A6270]'
+                active ? 'text-[#C44A12]' : 'text-[#5A6270]'
               }`}
             >
               {active && (
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-[#FF6B2B] rounded-full" />
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-[#C44A12] rounded-full" />
               )}
-              
+
               <div className="relative">
                 {tab.icon}
                 {tab.badge && (
-                  <span className={`absolute -top-1 -right-2 min-w-[16px] h-4 flex items-center justify-center text-[9px] font-[family-name:var(--font-mono)] font-bold rounded-full ${
-                    tab.badgeType === 'live' 
-                      ? 'text-[#2ECC71] animate-pulse' 
-                      : 'bg-[#FF6B2B] text-white'
+                  <span className={`absolute -top-1 -right-2 min-w-[16px] h-4 px-0.5 flex items-center justify-center text-[9px] font-[family-name:var(--font-mono)] font-bold rounded-full ${
+                    tab.badgeType === 'live'
+                      ? 'text-[#1E8449] animate-pulse'
+                      : 'bg-[#C44A12] text-white'
                   }`}>
                     {tab.badge}
                   </span>
                 )}
               </div>
-              
+
               <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-wider">{tab.label}</span>
             </Link>
           );
         })}
       </nav>
-      )}
     </div>
   );
+}
 
-  // Don't wrap auth pages with LocationProvider
-  if (isAuthPage) {
-    return content;
+export default function VolunteerLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+
+  // Login pages render bare: no session, GPS tracking or navigation yet.
+  if (AUTH_PAGES.includes(pathname)) {
+    return <div className="min-h-screen bg-white">{children}</div>;
   }
 
   return (
-    <LocationProvider>
-      {content}
-    </LocationProvider>
+    <VolunteerSessionProvider>
+      <LocationProvider>
+        <VolunteerShell>{children}</VolunteerShell>
+      </LocationProvider>
+    </VolunteerSessionProvider>
   );
 }

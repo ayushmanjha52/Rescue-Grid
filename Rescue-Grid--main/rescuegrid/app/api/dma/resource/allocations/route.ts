@@ -1,17 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { requireDma } from "@/lib/auth/dma";
 
 export async function GET(request: NextRequest) {
+  const auth = await requireDma();
+  if (auth.response) return auth.response;
+
   try {
     const supabase = createServiceClient();
     const { searchParams } = new URL(request.url);
-    
-    const resource_id = searchParams.get("resource_id");
-    const assignment_id = searchParams.get("assignment_id");
-    const task_force_id = searchParams.get("task_force_id");
-    const volunteer_id = searchParams.get("volunteer_id");
-    const status = searchParams.get("status");
-    
+
     let query = supabase
       .from("resource_allocation")
       .select(`
@@ -21,24 +19,20 @@ export async function GET(request: NextRequest) {
         task_force:task_force_id(name),
         volunteer:volunteer_id(name)
       `)
-      .order("allocated_at", { ascending: false });
-    
-    if (resource_id) query = query.eq("resource_id", resource_id);
-    if (assignment_id) query = query.eq("assignment_id", assignment_id);
-    if (task_force_id) query = query.eq("task_force_id", task_force_id);
-    if (volunteer_id) query = query.eq("volunteer_id", volunteer_id);
-    if (status) query = query.eq("status", status);
-    
+      .order("allocated_at", { ascending: false })
+      .limit(500);
+
+    for (const field of ["resource_id", "assignment_id", "task_force_id", "volunteer_id", "status"] as const) {
+      const value = searchParams.get(field);
+      if (value) query = query.eq(field, value);
+    }
+
     const { data, error } = await query;
-    
     if (error) throw error;
-    
+
     return NextResponse.json(data || []);
   } catch (err) {
     console.error("List allocations error:", err);
-    return NextResponse.json(
-      { error: "Failed to list allocations" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to list allocations" }, { status: 500 });
   }
 }

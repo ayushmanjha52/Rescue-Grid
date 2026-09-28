@@ -1,92 +1,68 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { createClient } from '@supabase/supabase-js';
+import { createServiceClient } from '@/lib/supabase/service';
+import { requireVolunteer } from '@/lib/auth/getVolunteer';
+import { getMissionForVolunteer, postVolunteerMissionUpdate, transitionAssignment } from '@/lib/assignments';
+import {
+  formatMissionUpdate,
+  isAssignmentDone,
+  MAX_MISSION_NOTE_LENGTH,
+  missionStatusHeadline,
+  normalizeAssignmentStatus,
+  VOLUNTEER_ASSIGNMENT_STATUSES,
+} from '@/lib/status';
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const auth = await requireVolunteer();
+    if (auth.response) return auth.response;
+    const { volunteerId } = auth;
 
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('volunteer_session');
-    
-    if (!sessionCookie?.value) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const session = JSON.parse(sessionCookie.value);
-    const volunteerId = session.volunteer_id;
+    const supabase = createServiceClient();
     const { id } = await params;
-    const body = await request.json();
-    const { status: statusFromBody, action } = body;
-    const status = statusFromBody || action;
+    const body = await request.json().catch(() => ({}));
+    const status = normalizeAssignmentStatus(String(body.status || body.action || ''));
+    const note = typeof body.note === 'string' ? body.note.trim() : '';
 
-    if (!status || !['active', 'en_route', 'on_my_way', 'arrived', 'completed', 'failed'].includes(status)) {
+    if (!(VOLUNTEER_ASSIGNMENT_STATUSES as readonly string[]).includes(status)) {
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
     }
-
-    const { data: assignment, error: fetchError } = await supabase
-      .from('assignment')
-      .select('assigned_to_volunteer, assigned_to_taskforce, victim_report_id')
-      .eq('id', id)
-      .single();
-
-    if (fetchError || !assignment) {
-      return NextResponse.json({ error: 'Assignment not found' }, { status: 404 });
+    if (note.length > MAX_MISSION_NOTE_LENGTH) {
+      return NextResponse.json({ error: `Note must be at most ${MAX_MISSION_NOTE_LENGTH} characters` }, { status: 400 });
     }
 
-    let isAuthorized = assignment.assigned_to_volunteer === volunteerId;
-    
-    if (!isAuthorized && assignment.assigned_to_taskforce) {
-      const { data: members } = await supabase
-        .from('task_force_member')
-        .select('volunteer_id')
-        .eq('task_force_id', assignment.assigned_to_taskforce)
-        .eq('volunteer_id', volunteerId);
-      
-      isAuthorized = (members?.length || 0) > 0;
+    const access = await getMissionForVolunteer(supabase, id, volunteerId);
+    if ('error' in access) {
+      return NextResponse.json({ error: access.error }, { status: access.status });
+    }
+    const { mission } = access;
+
+    if (isAssignmentDone(mission.status)) {
+      return NextResponse.json({ error: `Mission is already ${mission.status}` }, { status: 409 });
     }
 
-    if (!isAuthorized) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const statusChanged = normalizeAssignmentStatus(mission.status) !== status;
+    const updated = await transitionAssignment(supabase, id, status, volunteerId);
+
+    // Every step lands in Command's Messages and on the mission timeline. The
+    // status change itself has already succeeded, so a logging failure is only reported.
+    if (statusChanged || note) {
+      try {
+        await postVolunteerMissionUpdate(
+          supabase,
+          mission,
+          volunteerId,
+          formatMissionUpdate(missionStatusHeadline(status), mission.task, note),
+          status === 'failed'
+        );
+      } catch (logError) {
+        console.error('Mission update log failed (is migration 017 applied?):', logError);
+      }
     }
 
-    const updateData: Record<string, unknown> = { 
-      status,
-      updated_at: new Date().toISOString()
-    };
-
-    if (assignment.victim_report_id) {
-      let victimStatus = 'assigned';
-      if (status === 'completed') victimStatus = 'resolved';
-      else if (status === 'en_route' || status === 'on_my_way') victimStatus = 'en_route';
-      else if (status === 'arrived') victimStatus = 'arrived';
-      else if (status === 'active') victimStatus = 'active';
-      
-      await supabase
-        .from('victim_report')
-        .update({ status: victimStatus })
-        .eq('id', assignment.victim_report_id);
-    }
-
-    const { data, error } = await supabase
-      .from('assignment')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error updating assignment:', error);
-      return NextResponse.json({ error: 'Database error' }, { status: 500 });
-    }
-
-    return NextResponse.json(data);
+    return NextResponse.json(updated);
   } catch (error) {
     console.error('Error in PATCH /api/volunteer/assignment/[id]:', error);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });

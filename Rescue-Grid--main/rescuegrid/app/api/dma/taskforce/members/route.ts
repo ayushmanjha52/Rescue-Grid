@@ -1,24 +1,20 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
+import { requireDma } from '@/lib/auth/dma';
 
-interface TaskForceMember {
-  volunteer_id: string;
+interface MemberRow {
   member_type: string | null;
   role: string | null;
+  volunteer: { id: string; name: string; mobile_no: string; type: string | null; status: string } | null;
 }
 
-interface Volunteer {
-  id: string;
-  name: string;
-  mobile_no: string;
-  type: string | null;
-  status: string;
-}
-
+/** GET /api/dma/taskforce/members?taskforce_id=… — roster with contact numbers. */
 export async function GET(request: Request) {
+  const auth = await requireDma();
+  if (auth.response) return auth.response;
+
   try {
-    const { searchParams } = new URL(request.url);
-    const taskforceId = searchParams.get('taskforce_id');
+    const taskforceId = new URL(request.url).searchParams.get('taskforce_id');
 
     if (!taskforceId) {
       return NextResponse.json({ error: 'taskforce_id required' }, { status: 400 });
@@ -28,35 +24,18 @@ export async function GET(request: Request) {
 
     const { data: members, error } = await supabase
       .from('task_force_member')
-      .select('volunteer_id, member_type, role')
+      .select('member_type, role, volunteer:volunteer_id(id, name, mobile_no, type, status)')
       .eq('task_force_id', taskforceId);
 
     if (error) throw error;
-    if (!members || members.length === 0) {
-      return NextResponse.json([]);
-    }
 
-    const volunteerIds = members.map(m => m.volunteer_id);
-    const { data: volunteersData } = await supabase
-      .from('volunteer')
-      .select('id, name, mobile_no, type, status')
-      .in('id', volunteerIds);
-
-    const volunteerMap = new Map<string, Volunteer>();
-    volunteersData?.forEach(v => volunteerMap.set(v.id, v));
-
-    const result = members.map((m: TaskForceMember) => {
-      const volunteer = volunteerMap.get(m.volunteer_id);
-      return {
-        id: volunteer?.id,
-        name: volunteer?.name,
-        mobile_no: volunteer?.mobile_no,
-        type: volunteer?.type,
-        status: volunteer?.status,
+    const result = ((members || []) as unknown as MemberRow[])
+      .filter((m) => m.volunteer)
+      .map((m) => ({
+        ...m.volunteer!,
         member_type: m.member_type,
-        role: m.role
-      };
-    });
+        role: m.role,
+      }));
 
     return NextResponse.json(result);
   } catch (error) {

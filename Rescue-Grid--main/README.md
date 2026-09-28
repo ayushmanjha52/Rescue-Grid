@@ -3,16 +3,16 @@
 Resilient Orchestration Platform for Disaster Response.
 Asynchronous synchronization of Victims, Volunteers, and DMA in low connectivity, high-latency environments.
 
-Live Link : https://rescue-grid.vercel.app/ (Victim PWA)
-Live Link : https://rescue-grid.vercel.app/dma/dashboard (DMA Dashboard Secured by auth requires owener permission to view)
-Live Link : https://rescue-grid.vercel.app/volunteer/login (only registered phone number by the owner can create and login )
+Live Link : https://rescuegrid-india.vercel.app/ (Victim PWA — report an emergency, SOS)
+Live Link : https://rescuegrid-india.vercel.app/dma/login (DMA Dashboard, secured by auth; operator accounts are created by the owner)
+Live Link : https://rescuegrid-india.vercel.app/volunteer/login (volunteers join and sign in with a phone number + PIN, no SMS needed)
 
 
 # BANNER
 
 <p align="center">
   <img 
-    src="./rescuegrid banner/RESCUEGRID BANNER.jpeg" 
+    src="./rescuegrid/README/RESCUEGRID%20BANNER.jpeg" 
     alt="RescueGrid Hero Banner" 
     width="100%" 
     style="border-radius: 16px; box-shadow: 0 10px 30px rgba(255, 98, 0, 0.3);">
@@ -54,7 +54,7 @@ Low-Literacy & Accessibility Focused
 
 <p align="center">
   <img 
-    src="./rescuegrid architecture/RESCUEGRID ARCHITECTURE.jpeg" 
+    src="./rescuegrid/README/RESCUEGRID%20ARCHITECTURE.jpeg" 
     alt="RescueGrid Architecture" 
     width="100%" 
     style="border-radius: 16px; box-shadow: 0 10px 30px rgba(255, 98, 0, 0.3);">
@@ -65,7 +65,7 @@ Low-Literacy & Accessibility Focused
  # Tech Stack
 
  Dashboard:
-Next.js 15 (App Router)
+Next.js 16 (App Router) + React 19
 Tailwind CSS + SIGNAL ORANGE theme
 Backend & Database:
 Supabase (PostgreSQL + Realtime + Auth + MCP)
@@ -75,14 +75,14 @@ Mapbox API / Mapbox GL JS (offline-cacheable)
 AI Layer:
 OpenAI SDK (gpt-4o)
 Tool Calling + Supabase MCP
-Communication & Verification:
-Twilio (SMS Trigger + Phone Verification)
+Communication:
+Web Push notifications for volunteers; phone number + PIN sign-in (no paid SMS)
 Deployment:
-Vercel (Dashboard)
+Vercel (server in Tokyo, next to the Supabase database)
 Fallback Channels:
-SMS + USSD (feature phone support)
+SOS by SMS to 112 when there is no internet (optional Twilio number to receive SOS texts as reports)
 
-- [Installation & Setup](#installation--setup)
+- [Installation & Setup](./rescuegrid/README.md#getting-started)
 
 
 # Ai-integration
@@ -108,18 +108,16 @@ Key Capabilities in RescueGrid:
 
 # Offline-First Strategy
 
-Local Storage Layer:
-All writes (Victim reports, Volunteer task claims, photo evidence) are first saved in IndexedDB (browser’s local database).
-Queue System:
-A background queue stores every action with timestamp and retry logic.
-Background Sync:
-When internet returns, a Service Worker automatically pushes the queued data to Supabase Realtime (Single Data Layer).
-Graceful Degradation:
-Victim can still report needs using icons + voice + SMS fallback.
-Volunteer can still see and claim tasks locally.
-DMA Dashboard shows “Last synced X minutes ago” with best-available data.
-Conflict Handling:
-Claim-and-lock mechanism + duplicate detection prevents two people doing the same task offline
+What works today:
+- SMS fallback: with no internet, the SOS button opens the phone's SMS app with GPS (or the last known location), the emergency type and the victim's note pre-filled. A Supabase Edge Function parses the SMS into a live report and texts back a reference number.
+- Failed submissions: if the report form can't reach the server, it offers "Send by SMS instead" with everything already filled in.
+- Duplicate protection: retries or double taps within 10 minutes (web or SMS) attach to the existing report instead of creating a new one.
+- Live connection status: the victim and volunteer apps show when the device is offline.
+- Volunteers get web-push notifications for missions and broadcasts, even with the app closed.
+
+Roadmap (not built yet):
+- IndexedDB write queue with background sync for volunteer actions.
+- "Last synced X minutes ago" indicators on the DMA dashboard.
 
 # Real-World Use Cases
 

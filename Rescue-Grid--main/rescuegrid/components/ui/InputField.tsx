@@ -23,7 +23,7 @@ const InputField = forwardRef<HTMLInputElement, InputFieldProps>(
             w-full px-3 py-3
             bg-gray-50 border border-gray-200 rounded-sm
             font-body text-base text-gray-900
-            placeholder:text-gray-400
+            placeholder:text-gray-500
             focus:outline-none focus:ring-2 focus:ring-orange/20 focus:border-orange focus:bg-white
             transition-colors duration-150
             ${className}

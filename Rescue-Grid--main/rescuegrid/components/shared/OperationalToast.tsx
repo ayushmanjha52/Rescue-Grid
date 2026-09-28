@@ -1,21 +1,26 @@
 'use client';
 
-import { useOperationalAlerts, OperationalAlert } from '@/hooks/useOperationalAlerts';
+import Link from 'next/link';
+import { useOperationalAlerts, type OperationalAlert } from '@/hooks/useOperationalAlerts';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Bell, ShieldAlert, AlertTriangle, CheckCircle2, Navigation, Star, Info } from 'lucide-react';
+import { X, Bell, ShieldAlert, AlertTriangle, Star, Info, type LucideIcon } from 'lucide-react';
 
-const ICON_MAP: Record<string, any> = {
+const ICON_MAP: Record<OperationalAlert['type'], LucideIcon> = {
   broadcast: Bell,
   mission: Star,
   intel: Info,
   caution: ShieldAlert,
 };
 
+/** Live toasts for DMA operators (new reports, new volunteers, mission updates, messages). */
 export default function OperationalToast() {
   const { alerts, dismissAlert } = useOperationalAlerts();
 
   return (
-    <div className="fixed top-20 left-0 right-0 z-[9999] flex flex-col items-center gap-3 pointer-events-none px-4">
+    <div
+      className="fixed top-20 left-0 right-0 z-[9999] flex flex-col items-center gap-3 pointer-events-none px-4"
+      aria-live="polite"
+    >
       <AnimatePresence>
         {alerts.map((alert) => {
           const Icon = ICON_MAP[alert.type] || Info;
@@ -26,8 +31,9 @@ export default function OperationalToast() {
               initial={{ y: -50, opacity: 0, scale: 0.9 }}
               animate={{ y: 0, opacity: 1, scale: 1 }}
               exit={{ x: 100, opacity: 0, scale: 0.9 }}
-              className="w-full max-w-md bg-surface-2 border border-border-dim shadow-[0_10px_30px_rgba(0,0,0,0.5)] pointer-events-auto overflow-hidden flex transition-all hover:scale-[1.02]"
+              className="w-full max-w-md bg-white border border-border-dim shadow-[0_10px_30px_rgba(0,0,0,0.15)] pointer-events-auto overflow-hidden flex"
               style={{ borderLeft: `3px solid ${alert.color}` }}
+              role="status"
             >
               <div className="p-3 flex-1">
                 <div className="flex justify-between items-start mb-1">
@@ -37,22 +43,31 @@ export default function OperationalToast() {
                       {alert.title}
                     </span>
                   </div>
-                  <button 
-                    onClick={() => dismissAlert(alert.id)} 
+                  <button
+                    onClick={() => dismissAlert(alert.id)}
                     className="text-dim hover:text-orange transition-colors"
+                    aria-label="Dismiss"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
-                
+
                 <h4 className="font-body font-bold text-ink text-[13px] leading-tight mb-2">
                   {alert.message}
                 </h4>
-                
+
                 <div className="flex items-center gap-3 font-mono text-[9px] font-bold text-dim uppercase tracking-tighter">
                   <span>SYSTEM ALERT</span>
                   <span>•</span>
                   <span>{new Date(alert.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  {alert.href && (
+                    <>
+                      <span>•</span>
+                      <Link href={alert.href} onClick={() => dismissAlert(alert.id)} className="text-orange hover:underline">
+                        View →
+                      </Link>
+                    </>
+                  )}
                 </div>
               </div>
 

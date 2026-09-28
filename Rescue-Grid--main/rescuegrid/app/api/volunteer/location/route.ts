@@ -1,37 +1,31 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { createClient } from '@supabase/supabase-js';
+import { createServiceClient } from '@/lib/supabase/service';
+import { requireVolunteer } from '@/lib/auth/getVolunteer';
+
+function isValidCoordinate(value: unknown, limit: number): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= limit;
+}
 
 export async function PATCH(request: Request) {
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const auth = await requireVolunteer();
+    if (auth.response) return auth.response;
+    const { volunteerId } = auth;
 
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('volunteer_session');
-    
-    if (!sessionCookie?.value) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const supabase = createServiceClient();
+    const { latitude, longitude, accuracy } = await request.json().catch(() => ({}));
 
-    const session = JSON.parse(sessionCookie.value);
-    const volunteerId = session.volunteer_id;
-    const body = await request.json();
-    const { latitude, longitude, accuracy } = body;
-
-    if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+    if (!isValidCoordinate(latitude, 90) || !isValidCoordinate(longitude, 180)) {
       return NextResponse.json({ error: 'Invalid coordinates' }, { status: 400 });
     }
 
     const updateData: Record<string, number | string> = {
       latitude,
       longitude,
-      last_seen: new Date().toISOString()
+      last_seen: new Date().toISOString(),
     };
-    
-    if (typeof accuracy === 'number') {
+
+    if (typeof accuracy === 'number' && Number.isFinite(accuracy) && accuracy >= 0) {
       updateData.accuracy = accuracy;
     }
 

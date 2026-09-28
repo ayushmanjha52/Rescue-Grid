@@ -1,113 +1,133 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import { requireDma } from '@/lib/auth/dma'
+import { bboxAround, haversineKm } from '@/lib/geo'
+import { parseList, sanitizeFilterTerm } from '@/lib/skills'
+import { resolveSkillCodes, volunteerIdsWithSkills } from '@/lib/volunteerSearch'
 
-interface SearchParams {
+interface ScoredSearchBody {
   latitude: number
   longitude: number
   radius_km?: number
   skill_codes?: string[]
+  equipment?: string[]
+  status?: string
   limit?: number
 }
 
-export async function POST(req: NextRequest) {
-  const supabase = createServiceClient()
-  const body: SearchParams = await req.json()
-  const {
-    latitude,
-    longitude,
-    radius_km = 100,
-    skill_codes = [],
-    limit = 50,
-  } = body
+interface CandidateRow {
+  id: string
+  name: string
+  type: string | null
+  latitude: number
+  longitude: number
+  tier: number | null
+  status: string
+  last_seen: string | null
+  skills: string | null
+  equipment: string | null
+  volunteer_skills: { skill_definitions: { name: string } | null }[] | null
+}
 
-  let skillIds: number[] = []
-  if (skill_codes.length > 0) {
-    const { data: rows } = await supabase
-      .from('skill_definitions')
-      .select('id')
-      .in('code', skill_codes)
-    skillIds = rows?.map((r: any) => r.id) || []
+function availabilityScore(status: string, lastSeen: string | null): number {
+  if (status !== 'active') return 0
+  if (!lastSeen) return 0.1
+  const ageMs = Date.now() - new Date(lastSeen).getTime()
+  if (ageMs < 15 * 60 * 1000) return 1.0
+  if (ageMs < 60 * 60 * 1000) return 0.7
+  if (ageMs < 6 * 60 * 60 * 1000) return 0.4
+  return 0.1
+}
+
+/**
+ * Ranks volunteers for a mission location.
+ * score = 0.40 · tier + 0.35 · proximity + 0.25 · availability (+ bonus when skills match)
+ */
+export async function POST(req: NextRequest) {
+  const auth = await requireDma()
+  if (auth.response) return auth.response
+
+  const body: ScoredSearchBody = await req.json().catch(() => ({}))
+  const latitude = Number(body.latitude)
+  const longitude = Number(body.longitude)
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return NextResponse.json({ error: 'latitude and longitude are required' }, { status: 400 })
   }
 
-  const latDelta = radius_km / 111.0
-  const lngDelta = radius_km / (111.0 * Math.cos((latitude * Math.PI) / 180))
+  const radiusKm = Math.min(Math.max(Number(body.radius_km) || 50, 1), 500)
+  const limit = Math.min(Math.max(Number(body.limit) || 50, 1), 100)
+  const status = body.status || 'active'
+  const equipment = (body.equipment || []).map(sanitizeFilterTerm).filter(Boolean)
 
-  const { data: volunteers, error } = await supabase
+  const supabase = createServiceClient()
+
+  let skillMatches: Set<string> | null = null
+  if (body.skill_codes && body.skill_codes.length > 0) {
+    skillMatches = await volunteerIdsWithSkills(supabase, await resolveSkillCodes(supabase, body.skill_codes))
+    if (skillMatches.size === 0) {
+      return NextResponse.json({ volunteers: [], meta: { total: 0, center: { latitude, longitude }, radius_km: radiusKm } })
+    }
+  }
+
+  const box = bboxAround(latitude, longitude, radiusKm)
+  let query = supabase
     .from('volunteer')
     .select(`
-      id,
-      name,
-      mobile_no,
-      latitude,
-      longitude,
-      tier,
-      status,
-      last_seen,
-      volunteer_skills!inner(skill_id)
+      id, name, type, latitude, longitude, tier, status, last_seen, skills, equipment,
+      volunteer_skills(skill_definitions(name))
     `)
-    .eq('status', 'active')
-    .gte('latitude', latitude - latDelta)
-    .lte('latitude', latitude + latDelta)
-    .gte('longitude', longitude - lngDelta)
-    .lte('longitude', longitude + lngDelta)
-    .limit(Math.min(limit * 2, 100))
+    .gte('latitude', box.minLat)
+    .lte('latitude', box.maxLat)
+    .gte('longitude', box.minLng)
+    .lte('longitude', box.maxLng)
 
+  if (status !== 'all') query = query.eq('status', status)
+  if (skillMatches) query = query.in('id', [...skillMatches])
+  if (equipment.length > 0) {
+    query = query.or(equipment.map((e) => `equipment.ilike.%${e}%`).join(','))
+  }
+
+  const { data, error } = await query.limit(500)
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('Scored volunteer search error:', error)
+    return NextResponse.json({ error: 'Failed to search volunteers' }, { status: 500 })
   }
 
-  if (!volunteers || volunteers.length === 0) {
-    return NextResponse.json({ volunteers: [], meta: { total: 0, center: { latitude, longitude }, radius_km } })
-  }
+  const scored = ((data || []) as unknown as CandidateRow[])
+    .map((v) => {
+      const distanceKm = haversineKm(latitude, longitude, v.latitude, v.longitude)
+      if (distanceKm > radiusKm) return null
 
-  const scored = volunteers
-    .map((v: any) => {
-      const distKm = 6371 * 2 * Math.asin(
-        Math.sqrt(
-          Math.pow(Math.sin(((v.latitude - latitude) * Math.PI) / 360), 2) +
-          Math.cos((latitude * Math.PI) / 180) * Math.cos((v.latitude * Math.PI) / 180) *
-          Math.pow(Math.sin(((v.longitude - longitude) * Math.PI) / 360), 2)
-        )
-      )
+      const proximity = 1 - distanceKm / radiusKm
+      const tierScore = (v.tier || 1) / 4
+      const skillBonus = skillMatches ? 0.1 : 0
+      const score = 0.4 * tierScore + 0.35 * proximity + 0.25 * availabilityScore(v.status, v.last_seen) + skillBonus
 
-      if (distKm > radius_km) return null
+      const normalizedSkills = (v.volunteer_skills || [])
+        .map((vs) => vs.skill_definitions?.name)
+        .filter((name): name is string => !!name)
 
-      const proximityScore = 1.0 - (distKm / radius_km)
-      const availScore = v.status === 'active'
-        ? (v.last_seen && new Date(v.last_seen) > new Date(Date.now() - 15 * 60 * 1000) ? 1.0
-          : v.last_seen && new Date(v.last_seen) > new Date(Date.now() - 60 * 60 * 1000) ? 0.7
-          : v.last_seen && new Date(v.last_seen) > new Date(Date.now() - 6 * 60 * 60 * 1000) ? 0.4
-          : 0.1)
-        : 0.0
-      const skillScore = ((v.tier || 1) / 4.0)
-      const score = 0.40 * skillScore + 0.35 * proximityScore + 0.25 * availScore
-
-      return { ...v, score: Math.round(score * 10000) / 10000, distance_km: Math.round(distKm * 100) / 100 }
+      return {
+        id: v.id,
+        name: v.name,
+        type: v.type,
+        latitude: v.latitude,
+        longitude: v.longitude,
+        tier: v.tier,
+        status: v.status,
+        last_seen: v.last_seen,
+        skills: normalizedSkills.length > 0 ? normalizedSkills : parseList(v.skills),
+        equipment: parseList(v.equipment),
+        score: Math.round(Math.min(score, 1) * 10000) / 10000,
+        distance_km: Math.round(distanceKm * 10) / 10,
+      }
     })
-    .filter((v: any) => v !== null && v.score > 0)
-    .sort((a: any, b: any) => b.score - a.score)
-    .slice(0, Math.min(limit, 100))
-
-  const formatted = scored.map((v: any) => ({
-    id: v.id,
-    name: v.name,
-    mobile_no: v.mobile_no,
-    latitude: v.latitude,
-    longitude: v.longitude,
-    tier: v.tier,
-    status: v.status,
-    last_seen: v.last_seen,
-    skills: v.volunteer_skills?.map((vs: any) => vs.skill_id) || [],
-    score: v.score,
-    distance_km: v.distance_km
-  }))
+    .filter((v): v is NonNullable<typeof v> => v !== null)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
 
   return NextResponse.json({
-    volunteers: formatted,
-    meta: {
-      total: formatted.length,
-      center: { latitude, longitude },
-      radius_km,
-    },
+    volunteers: scored,
+    meta: { total: scored.length, center: { latitude, longitude }, radius_km: radiusKm },
   })
 }
