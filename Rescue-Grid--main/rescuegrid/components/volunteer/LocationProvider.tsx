@@ -1,6 +1,7 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useState, useCallback, useRef } from 'react';
+import { useVolunteerSession } from '@/components/volunteer/VolunteerSessionProvider';
 
 interface LocationContextType {
   latitude: number | null;
@@ -15,177 +16,131 @@ interface LocationContextType {
 
 const LocationContext = createContext<LocationContextType | undefined>(undefined);
 
-const UI_UPDATE_INTERVAL = 5000;
-const DB_SYNC_THROTTLE = 30000;
-const MIN_ACCEPTABLE_ACCURACY = 500; // meters - wait until we get at least this accuracy (mobile-friendly)
-const GPS_TIMEOUT = 30000; // 30 seconds max wait for GPS
+const UI_UPDATE_INTERVAL = 5000; // how often the UI re-renders with a new fix
+const DB_SYNC_THROTTLE = 30000; // how often the position is pushed to the server
+const POOR_ACCURACY_METERS = 500;
+
+interface Fix {
+  lat: number;
+  lng: number;
+  accuracy: number;
+}
 
 export function LocationProvider({ children }: { children: React.ReactNode }) {
-  const positionRef = useRef<{ lat: number; lng: number; accuracy: number; timestamp: number } | null>(null);
+  const latestFixRef = useRef<Fix | null>(null);
   const watchIdRef = useRef<number | null>(null);
-  const uiIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const gpsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const lastDbSyncRef = useRef<number>(0);
-  const hasInitializedRef = useRef(false);
+  const lastDbSyncRef = useRef(0);
+  const hasFixRef = useRef(false);
 
-  const [latitude, setLatitude] = useState<number | null>(null);
-  const [longitude, setLongitude] = useState<number | null>(null);
-  const [accuracy, setAccuracy] = useState<number | null>(null);
+  const [fix, setFix] = useState<Fix | null>(null);
   const [permission, setPermission] = useState<'granted' | 'denied' | 'prompt' | null>(null);
-  const [gpsStatus, setGpsStatus] = useState<'searching' | 'acquired' | 'poor' | null>(null);
+  const [gpsStatus, setGpsStatus] = useState<'searching' | 'acquired' | 'poor' | null>('searching');
   const [error, setError] = useState<string | null>(null);
-  const [isTracking, setIsTracking] = useState(false);
 
-  const sendLocationUpdate = useCallback(async (lat: number, lng: number, acc: number) => {
+  // Volunteers who switched themselves offline stop sharing their position.
+  const { volunteer } = useVolunteerSession();
+  const sharingRef = useRef(true);
+  useLayoutEffect(() => {
+    sharingRef.current = volunteer?.status !== 'offline';
+  });
+
+  const syncToServer = useCallback(async (current: Fix, force = false) => {
+    if (!sharingRef.current) return;
     const now = Date.now();
-    if (now - lastDbSyncRef.current < DB_SYNC_THROTTLE) {
-      return;
-    }
-
+    if (!force && now - lastDbSyncRef.current < DB_SYNC_THROTTLE) return;
+    lastDbSyncRef.current = now;
     try {
-      const res = await fetch('/api/volunteer/location', {
+      await fetch('/api/volunteer/location', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ latitude: lat, longitude: lng, accuracy: acc }),
+        body: JSON.stringify({ latitude: current.lat, longitude: current.lng, accuracy: current.accuracy }),
       });
-
-      if (res.ok) {
-        lastDbSyncRef.current = now;
-      }
     } catch {
-      // Silent fail - will retry on next interval
+      // Offline — the next fix will retry.
+      lastDbSyncRef.current = 0;
     }
   }, []);
 
-  const stopTracking = useCallback(() => {
+  const startWatching = useCallback(() => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return;
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
     }
-    if (uiIntervalRef.current) {
-      clearInterval(uiIntervalRef.current);
-      uiIntervalRef.current = null;
-    }
-    if (gpsTimeoutRef.current) {
-      clearTimeout(gpsTimeoutRef.current);
-      gpsTimeoutRef.current = null;
-    }
-    setIsTracking(false);
-  }, []);
-
-  const startContinuousTracking = useCallback(() => {
-    if (!navigator.geolocation || watchIdRef.current !== null) return;
-
-    setIsTracking(true);
-    setError(null);
 
     watchIdRef.current = navigator.geolocation.watchPosition(
       (position) => {
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
-        const acc = position.coords.accuracy;
-        positionRef.current = { lat, lng, accuracy: acc, timestamp: Date.now() };
-      },
-      (err) => {
-        if (err.code === 1) {
-          setPermission('denied');
-          stopTracking();
-        }
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0, // Don't use cached positions
-      }
-    );
-
-    uiIntervalRef.current = setInterval(() => {
-      const pos = positionRef.current;
-      if (pos) {
-        setLatitude(pos.lat);
-        setLongitude(pos.lng);
-        setAccuracy(pos.accuracy);
-        sendLocationUpdate(pos.lat, pos.lng, pos.accuracy);
-      }
-    }, UI_UPDATE_INTERVAL);
-  }, [sendLocationUpdate, stopTracking]);
-
-  // Get initial position
-  const getInitialPosition = useCallback((onSuccess: () => void) => {
-    if (!navigator.geolocation) {
-      setError('Geolocation not supported');
-      setPermission('denied');
-      return;
-    }
-
-    setGpsStatus('searching');
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
-        const acc = position.coords.accuracy;
-        
-        positionRef.current = { lat, lng, accuracy: acc, timestamp: Date.now() };
-        setLatitude(lat);
-        setLongitude(lng);
-        setAccuracy(acc);
+        const next: Fix = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+        };
+        latestFixRef.current = next;
         setPermission('granted');
-        setGpsStatus('acquired');
         setError(null);
-        onSuccess();
-      },
-      (err) => {
-        if (err.code === 1) {
-          setPermission('denied');
-          setGpsStatus(null);
-          setError('Permission denied. Please enable location access in browser settings.');
-        } else if (err.code === 2) {
-          setGpsStatus(null);
-          setError('GPS unavailable. Please enable location services.');
-        } else {
-          setGpsStatus(null);
-          setError('Location request timed out. Try again.');
+        setGpsStatus(next.accuracy > POOR_ACCURACY_METERS ? 'poor' : 'acquired');
+
+        // Show and report the first fix right away; later fixes are batched.
+        if (!hasFixRef.current) {
+          hasFixRef.current = true;
+          setFix(next);
+          void syncToServer(next, true);
         }
       },
-      {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 0,
-      }
+      (err) => {
+        if (err.code === err.PERMISSION_DENIED) {
+          setPermission('denied');
+          setGpsStatus(null);
+          setError('Location permission denied. Enable location access in your browser settings.');
+        } else if (!hasFixRef.current) {
+          setGpsStatus(null);
+          setError(err.code === err.POSITION_UNAVAILABLE
+            ? 'GPS unavailable. Please enable location services.'
+            : 'Location request timed out. Move to an open area and retry.');
+        }
+      },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 10000 }
     );
-  }, []);
-
-  const requestPermission = useCallback(async () => {
-    getInitialPosition(() => {
-      startContinuousTracking();
-    });
-  }, [getInitialPosition, startContinuousTracking]);
+  }, [syncToServer]);
 
   useEffect(() => {
-    if (hasInitializedRef.current) return;
-    hasInitializedRef.current = true;
+    startWatching();
 
-    getInitialPosition(() => {
-      startContinuousTracking();
-    });
+    const interval = setInterval(() => {
+      const latest = latestFixRef.current;
+      if (!latest) return;
+      setFix((prev) =>
+        prev && prev.lat === latest.lat && prev.lng === latest.lng && prev.accuracy === latest.accuracy ? prev : latest
+      );
+      void syncToServer(latest);
+    }, UI_UPDATE_INTERVAL);
 
     return () => {
-      stopTracking();
+      clearInterval(interval);
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
     };
-  }, [getInitialPosition, startContinuousTracking, stopTracking]);
+  }, [startWatching, syncToServer]);
+
+  const requestPermission = useCallback(async () => {
+    setError(null);
+    setGpsStatus('searching');
+    hasFixRef.current = false;
+    startWatching();
+  }, [startWatching]);
 
   return (
     <LocationContext.Provider
       value={{
-        latitude,
-        longitude,
-        accuracy,
+        latitude: fix?.lat ?? null,
+        longitude: fix?.lng ?? null,
+        accuracy: fix?.accuracy ?? null,
         permission,
         error,
         gpsStatus,
         requestPermission,
-        isTracking,
+        isTracking: permission !== 'denied' && gpsStatus !== null,
       }}
     >
       {children}

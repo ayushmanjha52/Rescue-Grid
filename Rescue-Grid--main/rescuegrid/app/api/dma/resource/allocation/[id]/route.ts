@@ -1,69 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { requireDma } from "@/lib/auth/dma";
+import { AllocationError, updateAllocation } from "@/lib/resources";
+import { isAllocationStatus } from "@/lib/status";
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireDma();
+  if (auth.response) return auth.response;
+
   try {
     const supabase = createServiceClient();
     const { id } = await params;
-    const body = await request.json();
-    
-    const { status, quantity_consumed, quantity_returned, notes } = body;
-    
-    const validStatuses = ["allocated", "in_use", "consumed", "returned", "lost"];
-    if (!status || !validStatuses.includes(status)) {
-      return NextResponse.json(
-        { error: "Valid status is required" },
-        { status: 400 }
-      );
+    const { status, quantity_consumed, quantity_returned, notes } = await request.json().catch(() => ({}));
+
+    if (!isAllocationStatus(status)) {
+      return NextResponse.json({ error: "Valid status is required" }, { status: 400 });
     }
-    
-    const updateData: Record<string, unknown> = { 
+
+    const data = await updateAllocation(supabase, id, {
       status,
-      updated_at: new Date().toISOString() 
-    };
-    
-    if (quantity_consumed !== undefined) updateData.quantity_consumed = quantity_consumed;
-    if (quantity_returned !== undefined) updateData.quantity_returned = quantity_returned;
-    if (notes !== undefined) updateData.notes = notes;
-    
-    const { data, error } = await supabase
-      .from("resource_allocation")
-      .update(updateData)
-      .eq("id", id)
-      .select(`
-        *,
-        resource:resource_id(name)
-      `)
-      .single();
-    
-    if (error) throw error;
-    if (!data) {
-      return NextResponse.json(
-        { error: "Allocation not found" },
-        { status: 404 }
-      );
-    }
-    
-    if (status === "returned" && quantity_returned && data.resource_id) {
-      try {
-        await supabase.rpc("increment_resource_quantity", {
-          resource_id: data.resource_id,
-          amount: quantity_returned,
-        });
-      } catch {
-        console.log("RPC not available, skipping quantity increment");
-      }
-    }
-    
+      quantity_consumed,
+      quantity_returned,
+      notes: typeof notes === "string" ? notes.slice(0, 500) : undefined,
+    });
+
     return NextResponse.json(data);
   } catch (err) {
+    if (err instanceof AllocationError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
     console.error("Update allocation error:", err);
-    return NextResponse.json(
-      { error: "Failed to update allocation" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to update allocation" }, { status: 500 });
   }
 }

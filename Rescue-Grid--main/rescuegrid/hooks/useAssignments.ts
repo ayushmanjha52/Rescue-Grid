@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRealtimeSubscription } from '@/lib/realtime';
+import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
 
 export interface Assignment {
   id: string;
@@ -17,89 +18,61 @@ export interface Assignment {
   timer: string | null;
   created_at: string;
   updated_at: string;
+  task_force?: { id: string; name: string } | null;
+  volunteer_name?: string | null;
+  volunteer_phone?: string | null;
+  taskforce_name?: string | null;
+  last_update?: { content: string; sender_type: string; created_at: string } | null;
+  assignee_name?: string;
+  assignee_type?: string;
+  victim_situation?: string | null;
 }
 
-export function useAssignments(filter?: string) {
+/**
+ * Assignments for either the logged-in volunteer (their pending queue) or the
+ * DMA dashboard (everything). Any change to the table triggers a debounced
+ * refetch so joined fields (names, task forces) stay correct.
+ */
+export function useAssignments(scope: 'volunteer' | 'dma', options: { enabled?: boolean } = {}) {
+  const enabled = options.enabled ?? true;
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchAssignments = useCallback(async () => {
-    // Determine if we should wait for a filter
-    const isVolunteerPath = typeof window !== 'undefined' && window.location.pathname.includes('/volunteer/');
-    const isWaitingForFilter = isVolunteerPath && filter === undefined;
-
-    if (isWaitingForFilter) {
-      setLoading(false);
-      return;
-    }
-
     try {
-      setLoading(true);
-      const endpoint = filter ? `/api/volunteer/assignment/queue` : '/api/dma/assignment/list';
-      const res = await fetch(endpoint);
+      const endpoint = scope === 'volunteer' ? '/api/volunteer/assignment/queue' : '/api/dma/assignment/list';
+      const res = await fetch(endpoint, { cache: 'no-store' });
       if (!res.ok) throw new Error('Failed to fetch assignments');
       const data = await res.json();
       setAssignments(Array.isArray(data) ? data : []);
-    } catch (err: any) {
-      setError(err.message);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch assignments');
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, [scope]);
 
   useEffect(() => {
-    fetchAssignments();
-  }, [fetchAssignments]);
+    if (enabled) void fetchAssignments();
+  }, [fetchAssignments, enabled]);
 
-  useRealtimeSubscription<Assignment>([
-    {
-      table: 'assignment',
-      filter,
-      onInsert: (newAss) => {
-        // Only add if it matches our current view
-        if (filter) {
-          // Basic check for assigned_to_volunteer filter
-          if (filter.includes('assigned_to_volunteer') && newAss.assigned_to_volunteer) {
-            const volId = filter.split('=eq.')[1];
-            if (newAss.assigned_to_volunteer === volId) {
-              setAssignments((prev) => [newAss, ...prev]);
-            }
-          }
-          // If it's a TF assignment, the client-side filtering is harder, 
-          // but usually the DB filter will handle it.
-        } else {
-          setAssignments((prev) => [newAss, ...prev]);
-        }
-      },
-      onUpdate: (updatedAss) => {
-        setAssignments((prev) => {
-          const isRelevant = ['open', 'active', 'en_route', 'on_my_way', 'arrived', 'on-mission'].includes(updatedAss.status);
-          
-          if (!isRelevant && filter) {
-             return prev.filter(a => a.id !== updatedAss.id);
-          }
+  const scheduleRefetch = useDebouncedCallback(() => void fetchAssignments(), 300);
 
-          const index = prev.findIndex(a => a.id === updatedAss.id);
-          if (index !== -1) {
-            // Keep existing fields like victim_report if they aren't in the update
-            const merged = { ...prev[index], ...updatedAss };
-            return prev.map((a, i) => i === index ? merged : a);
-          } else if (isRelevant) {
-             // If it's a new assignment that just became relevant, we might want to add it,
-             // but we'd need to fetch the full details (joins). 
-             // For now, let's just refresh if we see something new and relevant.
-             fetchAssignments();
-             return prev;
-          }
-          return prev;
-        });
-      },
-      onDelete: (deletedAss) => {
-        setAssignments((prev) => prev.filter((a) => a.id !== deletedAss.id));
-      },
-    },
-  ], [filter]);
+  useRealtimeSubscription(
+    enabled
+      ? [
+          {
+            table: 'assignment',
+            onInsert: scheduleRefetch,
+            onUpdate: scheduleRefetch,
+            onDelete: scheduleRefetch,
+          },
+        ]
+      : [],
+    scope
+  );
 
-  return { assignments, loading, error, refresh: fetchAssignments };
+  return { assignments, loading: enabled ? loading : false, error, refresh: fetchAssignments };
 }

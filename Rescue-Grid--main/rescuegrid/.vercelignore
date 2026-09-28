@@ -1,0 +1,14 @@
+# Never upload secrets: environment variables are set in the Vercel project instead.
+.env
+.env.*
+!.env.example
+
+# Build output and dependencies are recreated by Vercel.
+.next
+node_modules
+
+# Not needed to run the website.
+tests
+scripts
+supabase/functions
+*.test.ts

@@ -1,42 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { requireDma } from "@/lib/auth/dma";
+import { parseBBox } from "@/lib/geo";
 
-const DISTRICT_BOUNDS = {
-  lat_min: 23.62, lat_max: 23.92,
-  lng_min: 86.20, lng_max: 86.58,
-}
+const MAP_STATUSES = ["active", "standby", "on-mission"];
 
+/** Volunteers with a known location (optionally limited to a bbox) for the DMA map. */
 export async function GET(req: NextRequest) {
+  const auth = await requireDma();
+  if (auth.response) return auth.response;
+
   try {
     const supabase = createServiceClient();
-    const { searchParams } = new URL(req.url);
-    const bbox = searchParams.get('bbox');
-    
-    let minLat = DISTRICT_BOUNDS.lat_min;
-    let maxLat = DISTRICT_BOUNDS.lat_max;
-    let minLng = DISTRICT_BOUNDS.lng_min;
-    let maxLng = DISTRICT_BOUNDS.lng_max;
-    
+    const bbox = parseBBox(new URL(req.url).searchParams.get("bbox"));
+
+    let query = supabase
+      .from("volunteer")
+      .select("id, name, mobile_no, latitude, longitude, status, type, skills, equipment, last_seen, tier")
+      .in("status", MAP_STATUSES)
+      .not("latitude", "is", null)
+      .not("longitude", "is", null);
+
     if (bbox) {
-      const [bMinLng, bMinLat, bMaxLng, bMaxLat] = bbox.split(',').map(parseFloat);
-      minLat = Math.max(bMinLat, DISTRICT_BOUNDS.lat_min);
-      maxLat = Math.min(bMaxLat, DISTRICT_BOUNDS.lat_max);
-      minLng = Math.max(bMinLng, DISTRICT_BOUNDS.lng_min);
-      maxLng = Math.min(bMaxLng, DISTRICT_BOUNDS.lng_max);
+      query = query
+        .gte("latitude", bbox.minLat)
+        .lte("latitude", bbox.maxLat)
+        .gte("longitude", bbox.minLng)
+        .lte("longitude", bbox.maxLng);
     }
 
-    const { data, error } = await supabase
-      .from("volunteer")
-      .select("id, name, mobile_no, latitude, longitude, status, type, skills, equipment, last_seen")
-      .in('status', ['active', 'standby', 'on-mission'])
-      .gte('latitude', minLat)
-      .lte('latitude', maxLat)
-      .gte('longitude', minLng)
-      .lte('longitude', maxLng);
-
+    const { data, error } = await query.limit(1000);
     if (error) throw error;
     return NextResponse.json(data || []);
-  } catch {
-    return NextResponse.json([]);
+  } catch (err) {
+    console.error("Volunteer locations error:", err);
+    return NextResponse.json({ error: "Failed to load volunteer locations" }, { status: 500 });
   }
 }

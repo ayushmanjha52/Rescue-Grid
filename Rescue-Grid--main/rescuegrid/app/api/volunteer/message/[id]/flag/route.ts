@@ -1,25 +1,37 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { createClient } from '@supabase/supabase-js';
+import { createServiceClient } from '@/lib/supabase/service';
+import { isTaskForceMember, requireVolunteer } from '@/lib/auth/getVolunteer';
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('volunteer_session');
-    
-    if (!sessionCookie?.value) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireVolunteer();
+    if (auth.response) return auth.response;
+    const { volunteerId } = auth;
 
     const { id } = await params;
+    const supabase = createServiceClient();
+
+    const { data: existing } = await supabase
+      .from('message')
+      .select('id, task_force_id, sender_id, receiver_id')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Message not found' }, { status: 404 });
+    }
+
+    // Volunteers can only flag messages they can see.
+    const canSee = existing.task_force_id
+      ? await isTaskForceMember(supabase, volunteerId, existing.task_force_id)
+      : existing.sender_id === volunteerId || existing.receiver_id === volunteerId;
+
+    if (!canSee) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const { data: message, error } = await supabase
       .from('message')

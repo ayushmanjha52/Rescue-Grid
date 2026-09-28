@@ -1,119 +1,56 @@
 import { createServiceClient } from "@/lib/supabase/service";
+import { requireDma } from "@/lib/auth/dma";
+import { cleanMessageContent, MAX_MESSAGE_LENGTH, withSenderNames } from "@/lib/messages";
+import { sendPushToVolunteers } from "@/lib/push/sendPush";
+import { notifyReportUpdated } from "@/lib/notify";
 import { NextResponse } from "next/server";
 
+const MAX_HISTORY = 500;
+// channel_id is interpolated into a PostgREST filter, so it must be a plain UUID.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function GET(request: Request) {
+  const auth = await requireDma();
+  if (auth.response) return auth.response;
+
   const { searchParams } = new URL(request.url);
   const channelType = searchParams.get("channel_type");
   const channelId = searchParams.get("channel_id");
 
+  if (!channelId || !UUID_RE.test(channelId) || !["victim_thread", "taskforce_room", "direct"].includes(channelType || "")) {
+    return NextResponse.json({ error: "Invalid channel parameters" }, { status: 400 });
+  }
+
   const supabase = createServiceClient();
 
   try {
-    if (channelType === "victim_thread" && channelId) {
-      const [{ data: messages, error }, { data: victimReport }] = await Promise.all([
-        supabase
-          .from("message")
-          .select("*")
-          .eq("victim_report_id", channelId)
-          .order("created_at", { ascending: true }),
-        supabase
-          .from("victim_report")
-          .select("phone_no")
-          .eq("id", channelId)
-          .single()
-      ]);
+    let query = supabase.from("message").select("*");
+    let victimLabel = "Victim";
 
-      if (error) throw error;
-
-      const phoneNo = victimReport?.phone_no || "Unknown";
-
-      const messagesWithSender = (messages || []).map((msg) => ({
-        ...msg,
-        sender_name: msg.sender_type === "victim" ? phoneNo : msg.sender_type === "dma" ? "DMA Command" : "Unknown",
-      }));
-
-      return NextResponse.json(messagesWithSender);
-    }
-
-    if (channelType === "taskforce_room" && channelId) {
-      const { data: messages, error } = await supabase
-        .from("message")
-        .select("*")
-        .eq("task_force_id", channelId)
-        .order("created_at", { ascending: true });
-
-      if (error) throw error;
-
-      if (messages && messages.length > 0) {
-        const senderIds = [...new Set(messages.filter(m => m.sender_id).map(m => m.sender_id))];
-        let senderNames: Record<string, string> = {};
-
-        if (senderIds.length > 0) {
-          const { data: volunteers } = await supabase
-            .from("volunteer")
-            .select("id, name")
-            .in("id", senderIds);
-
-          if (volunteers) {
-            senderNames = volunteers.reduce((acc, v) => {
-              acc[v.id] = v.name;
-              return acc;
-            }, {} as Record<string, string>);
-          }
-        }
-
-        const messagesWithSender = messages.map((msg) => ({
-          ...msg,
-          sender_name: msg.sender_type === "dma" ? "DMA Command" : senderNames[msg.sender_id || ""] || "Unknown Volunteer",
-        }));
-
-        return NextResponse.json(messagesWithSender);
-      }
-
-      return NextResponse.json(messages || []);
-    }
-
-    if (channelType === "direct" && channelId) {
-      const { data: messages, error } = await supabase
-        .from("message")
-        .select("*")
+    if (channelType === "victim_thread") {
+      query = query.eq("victim_report_id", channelId);
+      const { data: report } = await supabase
+        .from("victim_report")
+        .select("phone_no")
+        .eq("id", channelId)
+        .maybeSingle();
+      victimLabel = report?.phone_no || "Victim";
+    } else if (channelType === "taskforce_room") {
+      query = query.eq("task_force_id", channelId);
+    } else {
+      query = query
         .or(`receiver_id.eq.${channelId},sender_id.eq.${channelId}`)
         .is("task_force_id", null)
-        .is("victim_report_id", null)
-        .order("created_at", { ascending: true });
-
-      if (error) throw error;
-
-      if (messages && messages.length > 0) {
-        const senderIds = [...new Set(messages.filter(m => m.sender_id && m.sender_type !== 'dma').map(m => m.sender_id))];
-        let senderNames: Record<string, string> = {};
-
-        if (senderIds.length > 0) {
-          const { data: volunteers } = await supabase
-            .from("volunteer")
-            .select("id, name")
-            .in("id", senderIds);
-
-          if (volunteers) {
-            senderNames = volunteers.reduce((acc, v) => {
-              acc[v.id] = v.name;
-              return acc;
-            }, {} as Record<string, string>);
-          }
-        }
-
-        const messagesWithSender = messages.map((msg) => ({
-          ...msg,
-          sender_name: msg.sender_type === "dma" ? "DMA Command" : senderNames[msg.sender_id || ""] || "Unknown",
-        }));
-
-        return NextResponse.json(messagesWithSender);
-      }
-
-      return NextResponse.json(messages || []);
+        .is("victim_report_id", null);
     }
 
-    return NextResponse.json({ error: "Invalid channel parameters" }, { status: 400 });
+    const { data: messages, error } = await query
+      .order("created_at", { ascending: false })
+      .limit(MAX_HISTORY);
+
+    if (error) throw error;
+
+    return NextResponse.json(await withSenderNames(supabase, (messages || []).reverse(), victimLabel));
   } catch (error) {
     console.error("Error fetching messages:", error);
     return NextResponse.json({ error: "Failed to fetch messages" }, { status: 500 });
@@ -121,38 +58,43 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const auth = await requireDma();
+  if (auth.response) return auth.response;
+
   const supabase = createServiceClient();
 
   try {
-    const body = await request.json();
-    const { content, channel_type, task_force_id, victim_report_id, receiver_id } = body;
+    const body = await request.json().catch(() => ({}));
+    const { channel_type, task_force_id, victim_report_id, receiver_id } = body;
+    const content = cleanMessageContent(body.content);
 
     if (!content || !channel_type) {
       return NextResponse.json(
-        { error: "Content and channel_type are required" },
+        { error: `Message (max ${MAX_MESSAGE_LENGTH} chars) and channel_type are required` },
         { status: 400 }
       );
     }
 
-    let insertData: Record<string, unknown> = {
+    const insertData: Record<string, unknown> = {
       content,
       sender_type: "dma",
     };
+    let pushRecipients: string[] = [];
 
     if (channel_type === "victim_thread" && victim_report_id) {
       insertData.victim_report_id = victim_report_id;
     } else if (channel_type === "taskforce_room" && task_force_id) {
       insertData.task_force_id = task_force_id;
-      if (receiver_id) {
-        insertData.receiver_id = receiver_id;
-      }
+      const { data: members } = await supabase
+        .from("task_force_member")
+        .select("volunteer_id")
+        .eq("task_force_id", task_force_id);
+      pushRecipients = (members || []).map((m: { volunteer_id: string }) => m.volunteer_id);
     } else if (channel_type === "direct" && receiver_id) {
       insertData.receiver_id = receiver_id;
+      pushRecipients = [receiver_id];
     } else {
-      return NextResponse.json(
-        { error: "Invalid channel configuration" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid channel configuration" }, { status: 400 });
     }
 
     const { data, error } = await supabase
@@ -162,7 +104,19 @@ export async function POST(request: Request) {
       .single();
 
     if (error) throw error;
-    return NextResponse.json(data, { status: 201 });
+
+    if (channel_type === "victim_thread") await notifyReportUpdated(victim_report_id);
+
+    await sendPushToVolunteers(
+      supabase,
+      pushRecipients,
+      "📨 DMA Command",
+      content.substring(0, 120),
+      channel_type === "taskforce_room" ? `/volunteer/chat/${task_force_id}` : "/volunteer/inbox"
+    );
+
+    const [withName] = await withSenderNames(supabase, [data]);
+    return NextResponse.json(withName, { status: 201 });
   } catch (error) {
     console.error("Error sending message:", error);
     return NextResponse.json({ error: "Failed to send message" }, { status: 500 });

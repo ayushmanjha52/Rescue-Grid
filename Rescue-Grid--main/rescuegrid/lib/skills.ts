@@ -1,47 +1,46 @@
-export const SKILL_OPTIONS = [
-  { value: "medical", label: "Medical", description: "First aid, CPR, medical rescue" },
-  { value: "first-aid", label: "First Aid", description: "Basic first aid certified" },
-  { value: "rescue", label: "Rescue", description: "General rescue operations" },
-  { value: "swimming", label: "Swimming", description: "Strong swimming ability" },
-  { value: "climbing", label: "Climbing", description: "Rock/mountain climbing" },
-  { value: "driving", label: "Driving", description: "Vehicle operation" },
-  { value: "communications", label: "Communications", description: "Radio/communication equipment" },
-  { value: "logistics", label: "Logistics", description: "Supply chain and coordination" },
-  { value: "search", label: "Search & Rescue", description: "Search and rescue operations" },
-  { value: "firefighting", label: "Firefighting", description: "Fire suppression certified" },
-  { value: "water-rescue", label: "Water Rescue", description: "Flood/water rescue" },
-  { value: "extraction", label: "Extraction", description: "Victim extraction" },
-  { value: "navigation", label: "Navigation", description: "GPS/map navigation" },
-  { value: "heavy-equipment", label: "Heavy Equipment", description: "Excavator/crane operation" },
-  { value: "diving", label: "Diving", description: "Scuba/diving certified" },
-] as const;
+// The skill taxonomy lives in the database (skill_categories / skill_definitions,
+// served by GET /api/skills). Equipment is still free text, so the common
+// options are listed here for filter chips.
 
 export const EQUIPMENT_OPTIONS = [
-  { value: "boat", label: "Boat", description: "Motor/row boat" },
-  { value: "ladder", label: "Ladder", description: "Extension/rescue ladder" },
-  { value: "radio", label: "Radio", description: "Communication radio" },
-  { value: "first-aid-kit", label: "First Aid Kit", description: "Medical supplies" },
-  { value: "stretcher", label: "Stretcher", description: "Medical stretcher" },
-  { value: "flashlight", label: "Flashlight", description: "Tactical flashlight" },
-  { value: "generator", label: "Generator", description: "Portable generator" },
-  { value: "chainsaw", label: "Chainsaw", description: "Power chainsaw" },
-  { value: "rope", label: "Rope", description: "Rescue rope" },
-  { value: "life-jacket", label: "Life Jacket", description: "Personal flotation device" },
-  { value: "helmet", label: "Helmet", description: "Safety/rescue helmet" },
-  { value: "gps", label: "GPS", description: "GPS device" },
-  { value: "satellite-phone", label: "Satellite Phone", description: "Satellite communication" },
-  { value: "snorkel", label: "Snorkel Gear", description: "Diving/snorkeling equipment" },
-  { value: "cutting-equipment", label: "Cutting Equipment", description: "Hydraulic cutters" },
+  { value: "boat", label: "Boat" },
+  { value: "ladder", label: "Ladder" },
+  { value: "radio", label: "Radio" },
+  { value: "first aid kit", label: "First Aid Kit" },
+  { value: "stretcher", label: "Stretcher" },
+  { value: "flashlight", label: "Flashlight" },
+  { value: "generator", label: "Generator" },
+  { value: "chainsaw", label: "Chainsaw" },
+  { value: "rope", label: "Rope" },
+  { value: "life jacket", label: "Life Jacket" },
+  { value: "medical kit", label: "Medical Kit" },
+  { value: "oxygen", label: "Oxygen" },
+  { value: "ambulance", label: "Ambulance" },
+  { value: "truck", label: "Truck" },
+  { value: "drone", label: "Drone" },
 ] as const;
 
-export type SkillValue = typeof SKILL_OPTIONS[number]["value"];
-export type EquipmentValue = typeof EQUIPMENT_OPTIONS[number]["value"];
-
-export function parseSkills(skills: string | null | undefined): string[] {
-  if (!skills) return [];
-  return skills.split(",").map(s => s.trim()).filter(Boolean);
+export interface SkillDefinition {
+  id: number;
+  code: string;
+  name: string;
 }
 
-export function stringifySkills(skills: string[]): string {
-  return skills.join(", ");
+export interface SkillCategory {
+  id: number;
+  code: string;
+  name: string;
+  skill_definitions: SkillDefinition[];
+}
+
+/** Splits a comma separated text column into trimmed values. */
+export function parseList(value: string | string[] | null | undefined): string[] {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.map((s) => String(s).trim()).filter(Boolean);
+  return value.split(",").map((s) => s.trim()).filter(Boolean);
+}
+
+/** Makes a free-text term safe to embed in a PostgREST filter string. */
+export function sanitizeFilterTerm(term: string): string {
+  return term.replace(/[^\p{L}\p{N} _-]/gu, "").trim().slice(0, 50);
 }

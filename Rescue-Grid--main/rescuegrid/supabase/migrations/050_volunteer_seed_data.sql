@@ -81,7 +81,7 @@ INSERT INTO volunteer (id, name, mobile_no, type, latitude, longitude, status, t
 (gen_random_uuid(), 'Soumen Nandi', '+919999990031', 'Individual', 23.8650, 86.5300, 'active', 3, NOW() - INTERVAL '18 minutes', 'ham_radio', 'Radio'),
 (gen_random_uuid(), 'Sujata Bose', '+919999990032', 'Individual', 23.8700, 86.5400, 'active', 2, NOW() - INTERVAL '2 hours', 'translator', 'None'),
 (gen_random_uuid(), 'Avijit Lahiri', '+919999990033', 'Individual', 23.8800, 86.5500, 'active', 2, NOW() - INTERVAL '45 minutes', 'driver', 'Ambulance'),
-(gen_random_uuid(), 'Madhuri莲花', '+919999990034', 'Individual', 23.8900, 86.5600, 'active', 4, NOW() - INTERVAL '12 minutes', 'doctor', 'Medical Kit'),
+(gen_random_uuid(), 'Madhuri Kumari', '+919999990034', 'Individual', 23.8900, 86.5600, 'active', 4, NOW() - INTERVAL '12 minutes', 'doctor', 'Medical Kit'),
 (gen_random_uuid(), 'Subrata Das', '+919999990035', 'Individual', 23.7550, 86.3500, 'active', 2, NOW() - INTERVAL '1 hour', 'first_aid', 'Kit'),
 (gen_random_uuid(), 'Anjan Chatterjee', '+919999990036', 'Individual', 23.7400, 86.3600, 'active', 1, NOW() - INTERVAL '8 hours', 'none', 'None'),
 

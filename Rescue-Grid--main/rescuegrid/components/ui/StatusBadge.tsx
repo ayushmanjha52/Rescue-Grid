@@ -8,19 +8,22 @@ interface StatusBadgeProps {
 
 const statusConfig: Record<string, { bg: string; text: string; dot: string; pulse?: boolean }> = {
   critical: { bg: "bg-red-50", text: "text-red-600", dot: "bg-red-500", pulse: true },
-  "on-mission": { bg: "bg-orange-50", text: "text-orange-600", dot: "bg-orange-500" },
-  ready: { bg: "bg-green-50", text: "text-green-600", dot: "bg-green-500" },
+  "on-mission": { bg: "bg-orange-50", text: "text-orange-700", dot: "bg-orange-500" },
+  ready: { bg: "bg-green-50", text: "text-green-700", dot: "bg-green-500" },
   standby: { bg: "bg-surface-2", text: "text-muted", dot: "bg-dim" },
   completed: { bg: "bg-blue-50", text: "text-blue-600", dot: "bg-blue-500" },
   open: { bg: "bg-red-50", text: "text-red-600", dot: "bg-red-500", pulse: true },
-  verified: { bg: "bg-green-50", text: "text-green-600", dot: "bg-green-500" },
-  assigned: { bg: "bg-orange-50", text: "text-orange-600", dot: "bg-orange-500" },
-  en_route: { bg: "bg-orange-50", text: "text-orange-600", dot: "bg-orange-500", pulse: true },
-  on_my_way: { bg: "bg-orange-50", text: "text-orange-600", dot: "bg-orange-500", pulse: true },
-  arrived: { bg: "bg-green-50", text: "text-green-600", dot: "bg-green-500" },
+  verified: { bg: "bg-green-50", text: "text-green-700", dot: "bg-green-500" },
+  assigned: { bg: "bg-orange-50", text: "text-orange-700", dot: "bg-orange-500" },
+  en_route: { bg: "bg-orange-50", text: "text-orange-700", dot: "bg-orange-500", pulse: true },
+  on_my_way: { bg: "bg-orange-50", text: "text-orange-700", dot: "bg-orange-500", pulse: true },
+  arrived: { bg: "bg-green-50", text: "text-green-700", dot: "bg-green-500" },
   resolved: { bg: "bg-blue-50", text: "text-blue-600", dot: "bg-blue-500" },
   failed: { bg: "bg-red-50", text: "text-red-600", dot: "bg-red-500" },
   pending: { bg: "bg-surface-2", text: "text-muted", dot: "bg-dim" },
+  active: { bg: "bg-blue-50", text: "text-blue-600", dot: "bg-blue-500" },
+  duplicate: { bg: "bg-amber-50", text: "text-amber-700", dot: "bg-amber-500" },
+  offline: { bg: "bg-surface-2", text: "text-dim", dot: "bg-dim" },
 };
 
 const sizeStyles = {
@@ -31,7 +34,7 @@ const sizeStyles = {
 
 export default function StatusBadge({ status, label, size = "md" }: StatusBadgeProps) {
   const config = statusConfig[status] || statusConfig.standby;
-  const displayLabel = label || status.toUpperCase().replace("-", " ").replace("_", " ");
+  const displayLabel = label || status.toUpperCase().replace(/[-_]/g, " ");
 
   return (
     <span

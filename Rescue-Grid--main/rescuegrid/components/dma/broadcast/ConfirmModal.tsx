@@ -56,7 +56,7 @@ export default function ConfirmModal({
           </div>
 
           <p className="font-mono text-[10px] text-dim">
-            This will send a push notification to all {recipientCount} recipient{recipientCount !== 1 ? "s" : ""}.
+            Each recipient gets an inbox message, plus a push notification if they enabled alerts.
           </p>
         </div>
 

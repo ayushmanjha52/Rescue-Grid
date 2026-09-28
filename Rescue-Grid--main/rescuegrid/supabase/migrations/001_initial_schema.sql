@@ -1,5 +1,6 @@
 -- WARNING: This schema is for context only and is not meant to be run.
 -- Table order and constraints may not be valid for execution.
+-- For a new database run ../schema.sql instead; existing databases apply 015.
 
 CREATE TABLE public.assignment (
   id uuid NOT NULL DEFAULT gen_random_uuid(),

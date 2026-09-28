@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -8,21 +10,22 @@ export async function GET(
   try {
     const { id: reportId } = await params;
 
-    if (!reportId) {
-      return NextResponse.json({ error: "Report ID required" }, { status: 400 });
+    if (!reportId || !UUID_RE.test(reportId)) {
+      return NextResponse.json({ error: "Report not found" }, { status: 404 });
     }
 
     const supabase = createServiceClient();
 
     const { data, error } = await supabase
       .from("message")
-      .select("*")
+      .select("id, content, sender_type, victim_report_id, created_at, read_at")
       .eq("victim_report_id", reportId)
-      .order("created_at", { ascending: true });
+      .order("created_at", { ascending: true })
+      .limit(500);
 
     if (error) {
       console.error("Messages fetch error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Failed to load messages" }, { status: 500 });
     }
 
     return NextResponse.json({ messages: data || [] }, { status: 200 });

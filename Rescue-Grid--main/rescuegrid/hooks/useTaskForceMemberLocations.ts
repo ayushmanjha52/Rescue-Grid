@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRealtimeSubscription } from '@/lib/realtime';
+import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
 
 export interface TaskForceMemberLocation {
   id: string;
@@ -15,6 +16,7 @@ export interface TaskForceMemberLocation {
   last_seen: string | null;
 }
 
+/** Locations of active task force members, for drawing team routes on the DMA map. */
 export function useTaskForceMemberLocations() {
   const [members, setMembers] = useState<TaskForceMemberLocation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,54 +24,55 @@ export function useTaskForceMemberLocations() {
 
   const fetchMembers = useCallback(async () => {
     try {
-      setLoading(true);
-      const res = await fetch('/api/dma/taskforce/member-locations');
+      const res = await fetch('/api/dma/taskforce/member-locations', { cache: 'no-store' });
       if (!res.ok) throw new Error('Failed to fetch task force member locations');
       const data = await res.json();
       setMembers(Array.isArray(data) ? data : []);
-    } catch (err: any) {
-      setError(err.message);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch task force member locations');
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchMembers();
+    void fetchMembers();
   }, [fetchMembers]);
 
-  // Subscribe to realtime updates for both task_force_member and volunteer tables
+  const scheduleRefetch = useDebouncedCallback(() => void fetchMembers(), 500);
+
   useRealtimeSubscription<TaskForceMemberLocation>([
     {
+      // Membership or task force status changed → reload the roster.
       table: 'task_force_member',
-      onInsert: () => fetchMembers(),
-      onUpdate: () => fetchMembers(),
-      onDelete: () => fetchMembers(),
+      onInsert: scheduleRefetch,
+      onUpdate: scheduleRefetch,
+      onDelete: scheduleRefetch,
     },
     {
+      table: 'task_force',
+      onUpdate: scheduleRefetch,
+    },
+    {
+      // Position pings: only move members we already track (no refetch storm).
       table: 'volunteer',
-      onInsert: (newVol) => {
-        // Only refetch if this volunteer might be a task force member
-        if (newVol.latitude && newVol.longitude) {
-          fetchMembers();
-        }
-      },
       onUpdate: (updatedVol) => {
-        setMembers((prev) => {
-          const index = prev.findIndex(m => m.id === updatedVol.id);
-          if (index !== -1) {
-            // Update existing member
-            return prev.map(m => m.id === updatedVol.id ? { ...m, ...updatedVol } : m);
-          }
-          // If volunteer now has location and might be a new member, refetch
-          if (updatedVol.latitude && updatedVol.longitude) {
-            fetchMembers();
-          }
-          return prev;
-        });
-      },
-      onDelete: (deletedVol) => {
-        setMembers((prev) => prev.filter(m => m.id !== deletedVol.id));
+        setMembers((prev) =>
+          prev.some((m) => m.id === updatedVol.id)
+            ? prev.map((m) =>
+                m.id === updatedVol.id
+                  ? {
+                      ...m,
+                      latitude: updatedVol.latitude ?? m.latitude,
+                      longitude: updatedVol.longitude ?? m.longitude,
+                      status: updatedVol.status ?? m.status,
+                      last_seen: updatedVol.last_seen ?? m.last_seen,
+                    }
+                  : m
+              )
+            : prev
+        );
       },
     },
   ]);

@@ -26,8 +26,8 @@ INSERT INTO victim_report (id, phone_no, latitude, longitude, city, district, si
   ('c1111111-1111-1111-1111-111111111111', '+919988776655', 23.8020, 86.4150, 'Dhanbad', 'Dhanbad', 'rescue', 'Family trapped in flooded basement, water rising fast', 'critical', 'open'),
   ('c2222222-2222-2222-2222-222222222222', '+919988776656', 23.8750, 86.4850, 'Sindri', 'Dhanbad', 'food', '5 families without food for 3 days after mine collapse', 'urgent', 'open'),
   ('c3333333-3333-3333-3333-333333333333', '+919988776657', 23.7450, 86.3800, 'Jharia', 'Dhanbad', 'medical', 'Elderly woman needs insulin, coal mine dust causing breathing issues', 'moderate', 'open'),
-  ('c4444444-4444-4444-4444-444444444444', '+919988776658', 23.6700, 86.1600, 'Bokaro Steel City', ' Bokaro', 'shelter', '100 people displaced after building collapse near factory', 'urgent', 'open'),
-  ('c5555555-5555-5555-5555-555555555555', '+919988776659', 23.6350, 85.5200, 'Ramgarh', 'Ramgarh', 'water', 'Contaminated water supply in locality near coal mine drainage', 'open', 'open');
+  ('c4444444-4444-4444-4444-444444444444', '+919988776658', 23.6700, 86.1600, 'Bokaro Steel City', 'Bokaro', 'shelter', '100 people displaced after building collapse near factory', 'urgent', 'open'),
+  ('c5555555-5555-5555-5555-555555555555', '+919988776659', 23.6350, 85.5200, 'Ramgarh', 'Ramgarh', 'water', 'Contaminated water supply in locality near coal mine drainage', 'urgent', 'open');
 
 -- Assignments (3) - 1 to volunteer, 1 to TF, 1 unassigned
 INSERT INTO assignment (id, task, location_label, latitude, longitude, urgency, status, assigned_to_volunteer, assigned_to_taskforce, victim_report_id) VALUES

@@ -1,14 +1,15 @@
 "use client";
 
 import Button from "@/components/ui/Button";
+import { formatRelative, useNow } from "@/hooks/useNow";
 
-interface Allocation {
+export interface Allocation {
   id: string;
   resource_id: string;
-  resource?: { name: string; type: string; unit: string };
-  assignment?: { task: string };
-  task_force?: { name: string };
-  volunteer?: { name: string };
+  resource?: { name: string; type: string; unit: string | null } | null;
+  assignment?: { task: string } | null;
+  task_force?: { name: string } | null;
+  volunteer?: { name: string } | null;
   quantity_allocated: number;
   quantity_consumed: number;
   quantity_returned: number;
@@ -23,99 +24,75 @@ interface AllocationCardProps {
   showActions?: boolean;
 }
 
+const STATUS_COLORS: Record<string, string> = {
+  allocated: "bg-intel/20 text-intel",
+  in_use: "bg-orange/20 text-orange",
+  consumed: "bg-ops/20 text-ops",
+  returned: "bg-caution/20 text-caution",
+  lost: "bg-alert/20 text-alert",
+};
+
 export default function AllocationCard({ allocation, onStatusUpdate, showActions = true }: AllocationCardProps) {
-  const getStatusBadge = () => {
-    const statusColors: Record<string, string> = {
-      allocated: "bg-intel/20 text-intel",
-      in_use: "bg-orange/20 text-orange",
-      consumed: "bg-ops/20 text-ops",
-      returned: "bg-caution/20 text-caution",
-      lost: "bg-alert/20 text-alert",
-    };
-    return (
-      <span className={`px-2 py-0.5 font-mono text-[10px] uppercase ${statusColors[allocation.status] || "bg-surface-3 text-muted"}`}>
-        {allocation.status.replace("_", " ")}
-      </span>
-    );
+  const now = useNow(60000);
+  const unit = allocation.resource?.unit || "units";
+  const isActive = allocation.status === "allocated" || allocation.status === "in_use";
+
+  const confirmAndUpdate = (status: string, message: string) => {
+    if (window.confirm(message)) onStatusUpdate(allocation.id, status);
   };
 
-  const getTargetLabel = () => {
-    if (allocation.assignment?.task) {
-      return (
-        <div className="text-[10px] font-mono">
-          <span className="text-orange">To:</span>{" "}
-          <span className="text-muted">Assignment &quot;{allocation.assignment.task}&quot;</span>
-        </div>
-      );
-    }
-    if (allocation.task_force?.name) {
-      return (
-        <div className="text-[10px] font-mono">
-          <span className="text-orange">TF:</span>{" "}
-          <span className="text-muted">{allocation.task_force.name}</span>
-        </div>
-      );
-    }
-    if (allocation.volunteer?.name) {
-      return (
-        <div className="text-[10px] font-mono">
-          <span className="text-orange">Volunteer:</span>{" "}
-          <span className="text-muted">{allocation.volunteer.name}</span>
-        </div>
-      );
-    }
-    return null;
-  };
-
-  const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) return "just now";
-    if (diffMins < 60) return `${diffMins} min ago`;
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
-    return date.toLocaleDateString();
-  };
+  const recipient = allocation.assignment?.task
+    ? { label: "Mission", value: allocation.assignment.task }
+    : allocation.task_force?.name
+      ? { label: "Task force", value: allocation.task_force.name }
+      : allocation.volunteer?.name
+        ? { label: "Volunteer", value: allocation.volunteer.name }
+        : null;
 
   return (
-    <div className="bg-surface-2 p-4 clip-path-tactical-sm">
+    <div className="bg-white border border-gray-100 p-4 clip-path-tactical-sm">
       <div className="flex justify-between items-start mb-2">
         <div>
-          <h4 className="font-display font-semibold text-ink uppercase text-sm">
-            {allocation.resource?.name || "Resource"}
-          </h4>
-          <p className="font-mono text-[10px] text-muted">
-            {allocation.quantity_allocated} {allocation.resource?.unit || "units"}
-          </p>
+          <h4 className="font-display font-semibold text-ink uppercase text-sm">{allocation.resource?.name || "Resource"}</h4>
+          <p className="font-mono text-[10px] text-muted">{allocation.quantity_allocated} {unit}</p>
         </div>
-        {getStatusBadge()}
+        <span className={`px-2 py-0.5 font-mono text-[10px] uppercase ${STATUS_COLORS[allocation.status] || "bg-surface-3 text-muted"}`}>
+          {allocation.status.replace("_", " ")}
+        </span>
       </div>
 
       <div className="space-y-1 mb-3">
-        {getTargetLabel()}
-        {allocation.notes && (
-          <p className="text-[10px] font-mono text-dim italic">&quot;{allocation.notes}&quot;</p>
+        {recipient && (
+          <div className="text-[10px] font-mono">
+            <span className="text-orange">{recipient.label}:</span>{" "}
+            <span className="text-muted">{recipient.value}</span>
+          </div>
+        )}
+        {allocation.notes && <p className="text-[10px] font-mono text-dim italic">&quot;{allocation.notes}&quot;</p>}
+        {!isActive && (
+          <p className="text-[10px] font-mono text-dim">
+            Used {allocation.quantity_consumed ?? 0} · Returned {allocation.quantity_returned ?? 0}
+          </p>
         )}
       </div>
 
-      <div className="flex justify-between text-[10px] font-mono text-dim mb-3">
-        <span>Allocated: {formatTime(allocation.allocated_at)}</span>
-      </div>
+      <div className="text-[10px] font-mono text-dim mb-3">Allocated {formatRelative(allocation.allocated_at, now)}</div>
 
-      {showActions && allocation.status !== "consumed" && allocation.status !== "returned" && allocation.status !== "lost" && (
-        <div className="flex gap-2 border-t border-border-dim pt-3">
+      {showActions && isActive && (
+        <div className="flex flex-wrap gap-2 border-t border-border-dim pt-3">
           {allocation.status === "allocated" && (
             <Button size="small" variant="secondary" onClick={() => onStatusUpdate(allocation.id, "in_use")}>
-              MARK IN USE
+              IN USE
             </Button>
           )}
-          <Button size="small" variant="secondary" onClick={() => onStatusUpdate(allocation.id, "consumed")}>
+          <Button size="small" variant="secondary" onClick={() => confirmAndUpdate("consumed", `Mark all ${allocation.quantity_allocated} ${unit} as used? Stock will be deducted.`)}>
             CONSUMED
           </Button>
-          <Button size="small" variant="ghost" onClick={() => onStatusUpdate(allocation.id, "returned")}>
+          <Button size="small" variant="ghost" onClick={() => confirmAndUpdate("returned", `Mark all ${allocation.quantity_allocated} ${unit} as returned to stock?`)}>
             RETURNED
+          </Button>
+          <Button size="small" variant="danger" onClick={() => confirmAndUpdate("lost", `Mark this allocation as lost? ${allocation.quantity_allocated} ${unit} will be written off.`)}>
+            LOST
           </Button>
         </div>
       )}

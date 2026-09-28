@@ -1,28 +1,47 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
+import { requireDma } from '@/lib/auth/dma';
+
+interface MemberLocationRow {
+  task_force_id: string;
+  volunteer: {
+    id: string;
+    name: string;
+    mobile_no: string;
+    type: string | null;
+    status: string;
+    latitude: number | null;
+    longitude: number | null;
+    last_seen: string | null;
+  } | null;
+}
 
 export async function GET() {
+  const auth = await requireDma();
+  if (auth.response) return auth.response;
+
   try {
     const supabase = createServiceClient();
 
-    // Get all task force members with their volunteer details including location
+    // Only members of active task forces matter for route drawing.
     const { data: members, error } = await supabase
       .from('task_force_member')
       .select(`
         task_force_id,
+        task_force:task_force_id!inner(status),
         volunteer:volunteer_id(
           id, name, mobile_no, type, status, latitude, longitude, last_seen
         )
-      `);
+      `)
+      .eq('task_force.status', 'active');
 
     if (error) throw error;
 
-    // Flatten the data for easier consumption
-    const result = (members || [])
-      .filter((m: any) => m.volunteer?.latitude && m.volunteer?.longitude) // Only include members with locations
-      .map((m: any) => ({
+    const result = ((members || []) as unknown as MemberLocationRow[])
+      .filter((m) => m.volunteer?.latitude != null && m.volunteer?.longitude != null)
+      .map((m) => ({
         task_force_id: m.task_force_id,
-        ...m.volunteer
+        ...m.volunteer!,
       }));
 
     return NextResponse.json(result);

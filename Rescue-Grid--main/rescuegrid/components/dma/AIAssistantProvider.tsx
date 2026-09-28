@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
 import { AIAssistantDrawer } from './AIAssistantDrawer';
 
 interface AIAssistantContextType {
@@ -24,12 +24,28 @@ export function useAIAssistant() {
 export function AIAssistantProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
 
-  const open = () => setIsOpen(true);
-  const close = () => setIsOpen(false);
-  const toggle = () => setIsOpen((prev) => !prev);
+  const open = useCallback(() => setIsOpen(true), []);
+  const close = useCallback(() => setIsOpen(false), []);
+  const toggle = useCallback(() => setIsOpen((prev) => !prev), []);
+
+  // ⌘K / Ctrl+K toggles the assistant on every DMA page; Esc closes it.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        toggle();
+      } else if (event.key === 'Escape') {
+        close();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [toggle, close]);
+
+  const value = useMemo(() => ({ isOpen, open, close, toggle }), [isOpen, open, close, toggle]);
 
   return (
-    <AIAssistantContext.Provider value={{ isOpen, open, close, toggle }}>
+    <AIAssistantContext.Provider value={value}>
       {children}
       <AIAssistantDrawer isOpen={isOpen} onClose={close} />
     </AIAssistantContext.Provider>

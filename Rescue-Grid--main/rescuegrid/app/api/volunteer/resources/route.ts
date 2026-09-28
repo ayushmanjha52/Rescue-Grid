@@ -1,73 +1,62 @@
 import { NextResponse } from "next/server";
-import { getVolunteerFromDb } from "@/lib/auth/getVolunteer";
+import { getVolunteerTaskForceIds, requireVolunteer } from "@/lib/auth/getVolunteer";
 import { createServiceClient } from "@/lib/supabase/service";
+import { ALLOCATION_ACTIVE } from "@/lib/status";
+
+const ACTIVE = ALLOCATION_ACTIVE as unknown as string[];
 
 export async function GET() {
   try {
-    const volunteer = await getVolunteerFromDb();
-    
-    if (!volunteer) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-    
+    const auth = await requireVolunteer();
+    if (auth.response) return auth.response;
+    const { volunteerId } = auth;
+
     const supabase = createServiceClient();
-    
-    const { data: myAllocations } = await supabase
-      .from("resource_allocation")
-      .select(`
-        *,
-        resource:resource_id(name, type, unit, location),
-        assignment:assignment_id(task)
-      `)
-      .eq("volunteer_id", volunteer.id)
-      .in("status", ["allocated", "in_use"]);
-    
-    const { data: taskForces } = await supabase
-      .from("task_force_member")
-      .select("task_force_id")
-      .eq("volunteer_id", volunteer.id);
-    
-    const taskForceIds = taskForces?.map(t => t.task_force_id) || [];
-    
-    let tfAllocations: unknown[] = [];
-    if (taskForceIds.length > 0) {
-      const { data } = await supabase
+    const taskForceIds = await getVolunteerTaskForceIds(supabase, volunteerId);
+
+    const [{ data: myAllocations }, tfResult, { data: history }] = await Promise.all([
+      supabase
         .from("resource_allocation")
         .select(`
           *,
           resource:resource_id(name, type, unit, location),
-          task_force:task_force_id(name)
+          assignment:assignment_id(task)
         `)
-        .in("task_force_id", taskForceIds)
-        .in("status", ["allocated", "in_use"]);
-      tfAllocations = data || [];
-    }
-    
-    const { data: history } = await supabase
-      .from("resource_allocation")
-      .select(`
-        *,
-        resource:resource_id(name, type, unit),
-        assignment:assignment_id(task)
-      `)
-      .eq("volunteer_id", volunteer.id)
-      .not("status", "in", '("allocated","in_use")')
-      .order("updated_at", { ascending: false })
-      .limit(50);
-    
+        .eq("volunteer_id", volunteerId)
+        .in("status", ACTIVE)
+        .order("allocated_at", { ascending: false }),
+      taskForceIds.length > 0
+        ? supabase
+            .from("resource_allocation")
+            .select(`
+              *,
+              resource:resource_id(name, type, unit, location),
+              task_force:task_force_id(name)
+            `)
+            .in("task_force_id", taskForceIds)
+            .in("status", ACTIVE)
+            .order("allocated_at", { ascending: false })
+        : Promise.resolve({ data: [] }),
+      supabase
+        .from("resource_allocation")
+        .select(`
+          *,
+          resource:resource_id(name, type, unit),
+          assignment:assignment_id(task)
+        `)
+        .eq("volunteer_id", volunteerId)
+        .not("status", "in", `(${ACTIVE.join(",")})`)
+        .order("updated_at", { ascending: false })
+        .limit(50),
+    ]);
+
     return NextResponse.json({
       mine: myAllocations || [],
-      taskForce: tfAllocations,
+      taskForce: tfResult.data || [],
       history: history || [],
     });
   } catch (err) {
     console.error("Get volunteer resources error:", err);
-    return NextResponse.json(
-      { error: "Failed to get resources" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to get resources" }, { status: 500 });
   }
 }
