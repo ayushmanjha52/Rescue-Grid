@@ -12,32 +12,37 @@ import { useAssignments } from "@/hooks/useAssignments";
 import { useTaskForceMemberLocations } from "@/hooks/useTaskForceMemberLocations";
 import { formatRelative, useNow } from "@/hooks/useNow";
 import { DEFAULT_MAP_CENTER, MAPBOX_TOKEN } from "@/lib/config";
-import { isAssignmentDone } from "@/lib/status";
+import { isAssignmentDone, SITUATION_COLORS } from "@/lib/status";
 import { parseList } from "@/lib/skills";
 
 const MAP_STYLES = {
-  streets: "mapbox://styles/mapbox/streets-v12",
+  dark: "mapbox://styles/mapbox/dark-v11",
   satellite: "mapbox://styles/mapbox/satellite-streets-v12",
-  navigation: "mapbox://styles/mapbox/navigation-day-v1",
+  streets: "mapbox://styles/mapbox/streets-v12",
 };
+type MapStyle = keyof typeof MAP_STYLES;
+
+// The style button cycles dark → satellite → streets and names the next one.
+const NEXT_MAP_STYLE: Record<MapStyle, MapStyle> = { dark: "satellite", satellite: "streets", streets: "dark" };
+const MAP_STYLE_LABELS: Record<MapStyle, string> = { dark: "🌙 NIGHT", satellite: "🛰️ SATELLITE", streets: "🗺️ STREETS" };
 
 const SITUATION_STYLES: Record<string, { color: string; label: string }> = {
-  rescue: { color: "#FF3B3B", label: "RESCUE" },
-  food: { color: "#2ECC71", label: "FOOD" },
-  water: { color: "#3B8BFF", label: "WATER" },
-  medical: { color: "#F5A623", label: "MEDICAL" },
-  shelter: { color: "#9B59B6", label: "SHELTER" },
-  missing: { color: "#6B7280", label: "MISSING" },
+  rescue: { color: SITUATION_COLORS.rescue, label: "RESCUE" },
+  food: { color: SITUATION_COLORS.food, label: "FOOD" },
+  water: { color: SITUATION_COLORS.water, label: "WATER" },
+  medical: { color: SITUATION_COLORS.medical, label: "MEDICAL" },
+  shelter: { color: SITUATION_COLORS.shelter, label: "SHELTER" },
+  missing: { color: SITUATION_COLORS.missing, label: "MISSING" },
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  open: "#2ECC71",
-  verified: "#3B8BFF",
-  assigned: "#3B8BFF",
-  en_route: "#FF6B2B",
-  arrived: "#2ECC71",
-  resolved: "#6B7280",
-  duplicate: "#F5A623",
+  open: "#4ADE94",
+  verified: "#7CB2FF",
+  assigned: "#7CB2FF",
+  en_route: "#FF7A3D",
+  arrived: "#4ADE94",
+  resolved: "#A8A29A",
+  duplicate: "#F7B955",
 };
 
 interface POIPlace {
@@ -71,9 +76,9 @@ function hasCoordinates(report: VictimReport): report is LocatedReport {
 }
 
 function getVolunteerStatusColor(status: string): string {
-  if (status === "on-mission") return "#FF6B2B";
-  if (status === "standby") return "#F5A623";
-  return "#2ECC71";
+  if (status === "on-mission") return "#FF7A3D";
+  if (status === "standby") return "#F7B955";
+  return "#4ADE94";
 }
 
 function getVolunteerStatusLabel(status: string): string {
@@ -129,20 +134,20 @@ function VictimMarker({
       {isAssigned && (
         <div
           className="absolute -inset-2 rounded-full border-2 border-dashed animate-[spin_10s_linear_infinite]"
-          style={{ borderColor: "#FF6B2B" }}
+          style={{ borderColor: "#FF7A3D" }}
         />
       )}
       <div
         className={`relative w-10 h-10 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 ${isSelected ? "scale-125 z-50" : ""}`}
         style={{ backgroundColor: style.color, boxShadow: "0 4px 12px rgba(0,0,0,0.4)" }}
       >
-        <MapPin className="w-5 h-5 text-white" />
+        <MapPin className="w-5 h-5 text-on-accent" />
         <div
           className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px]"
           style={{ borderTopColor: style.color }}
         />
         <div
-          className="absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-[#13161B]"
+          className="absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-surface-1"
           style={{ backgroundColor: statusColor }}
         />
       </div>
@@ -161,7 +166,7 @@ function POIMarker({
   onMouseLeave: () => void;
 }) {
   const isHospital = poi.category === "hospital";
-  const color = isHospital ? "#3B8BFF" : "#2ECC71";
+  const color = isHospital ? "#7CB2FF" : "#4ADE94";
 
   return (
     <div className="relative cursor-pointer group" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
@@ -187,36 +192,36 @@ function POIMarker({
 
 function ReportPopup({ report, isOrigin, now }: { report: VictimReport; isOrigin?: boolean; now: number }) {
   const style = SITUATION_STYLES[report.situation] || SITUATION_STYLES.rescue;
-  const urgencyColor = report.urgency === "critical" ? "#FF3B3B" : report.urgency === "urgent" ? "#FF6B2B" : "#8A8F99";
-  const statusColor = STATUS_COLORS[report.status] || "#6B7280";
+  const urgencyColor = report.urgency === "critical" ? "#FF6166" : report.urgency === "urgent" ? "#FF7A3D" : "#9A948B";
+  const statusColor = STATUS_COLORS[report.status] || "#A8A29A";
 
   return (
-    <div style={{ background: "#13161B", minWidth: 260, borderRadius: 4, overflow: "hidden", boxShadow: "0 12px 40px rgba(0,0,0,0.6)" }}>
+    <div style={{ background: "#121215", minWidth: 260, borderRadius: 4, overflow: "hidden", boxShadow: "0 12px 40px rgba(0,0,0,0.6)" }}>
       {isOrigin && (
-        <div style={{ background: "#FF6B2B", padding: "6px 12px", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#000", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+        <div style={{ background: "#FF7A3D", padding: "6px 12px", fontFamily: "var(--font-mono)", fontSize: 10, color: "#0B0B0D", textTransform: "uppercase", letterSpacing: "0.1em" }}>
           📍 Origin Selected
         </div>
       )}
       <div style={{ borderLeft: `3px solid ${style.color}`, padding: "12px 14px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: style.color, textTransform: "uppercase", letterSpacing: "0.1em" }}>{style.label}</span>
-          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: urgencyColor, background: `${urgencyColor}20`, padding: "3px 6px", borderRadius: 2, textTransform: "uppercase" }}>{report.urgency}</span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: style.color, textTransform: "uppercase", letterSpacing: "0.1em" }}>{style.label}</span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: urgencyColor, background: `${urgencyColor}20`, padding: "3px 6px", borderRadius: 2, textTransform: "uppercase" }}>{report.urgency}</span>
         </div>
-        <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 16, fontWeight: 600, color: "#F0EDE8", marginBottom: 4 }}>
+        <div style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 600, color: "#F2EEE7", marginBottom: 4 }}>
           📍 {report.city || "Unknown"}{report.district ? `, ${report.district.trim()}` : ""}
         </div>
-        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#9CA3AF", marginBottom: report.custom_message ? 8 : 0 }}>
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "#9A948B", marginBottom: report.custom_message ? 8 : 0 }}>
           {report.phone_no} · {formatRelative(report.created_at, now)}
         </div>
         {report.custom_message && (
-          <div style={{ fontFamily: "'Barlow', sans-serif", fontSize: 12, color: "#D1D5DB", fontStyle: "italic", lineHeight: 1.4, padding: 8, background: "rgba(255,255,255,0.05)", borderRadius: 3, marginBottom: 8 }}>
+          <div style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "#BDB6AC", fontStyle: "italic", lineHeight: 1.4, padding: 8, background: "rgba(255,255,255,0.05)", borderRadius: 3, marginBottom: 8 }}>
             &ldquo;{report.custom_message.substring(0, 80)}{report.custom_message.length > 80 ? "..." : ""}&rdquo;
           </div>
         )}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 8, borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, textTransform: "uppercase", letterSpacing: "0.1em", color: statusColor }}>● {report.status?.toUpperCase().replace("_", " ") || "OPEN"}</span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, textTransform: "uppercase", letterSpacing: "0.1em", color: statusColor }}>● {report.status?.toUpperCase().replace("_", " ") || "OPEN"}</span>
           {isOrigin && (
-            <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 10, color: "#FF6B2B", textTransform: "uppercase" }}>Click responder to measure →</span>
+            <span style={{ fontFamily: "var(--font-display)", fontSize: 10, color: "#FF7A3D", textTransform: "uppercase" }}>Click responder to measure →</span>
           )}
         </div>
       </div>
@@ -230,64 +235,64 @@ function VolunteerPopup({ vol, isDestination, distanceInfo, now }: { vol: Volunt
   const equipment = parseList(vol.equipment);
 
   return (
-    <div style={{ background: "#13161B", minWidth: 240, borderRadius: 4, overflow: "hidden", boxShadow: "0 12px 40px rgba(0,0,0,0.6)" }}>
+    <div style={{ background: "#121215", minWidth: 240, borderRadius: 4, overflow: "hidden", boxShadow: "0 12px 40px rgba(0,0,0,0.6)" }}>
       {isDestination && (
-        <div style={{ background: "#2ECC71", padding: "6px 12px", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#000", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+        <div style={{ background: "#4ADE94", padding: "6px 12px", fontFamily: "var(--font-mono)", fontSize: 10, color: "#0B0B0D", textTransform: "uppercase", letterSpacing: "0.1em" }}>
           ✓ Destination Set
         </div>
       )}
       <div style={{ padding: 14 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-          <div style={{ width: 44, height: 44, background: "#1A1E25", border: `2px solid ${statusColor}`, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 18, color: "#F0EDE8" }}>
+          <div style={{ width: 44, height: 44, background: "#202026", border: `2px solid ${statusColor}`, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 18, color: "#F2EEE7" }}>
             {vol.name?.charAt(0) || "?"}
           </div>
           <div>
-            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 16, fontWeight: 600, color: "#F0EDE8" }}>{vol.name || "Unknown"}</div>
-            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#9CA3AF", textTransform: "uppercase" }}>{vol.type}</div>
+            <div style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 600, color: "#F2EEE7" }}>{vol.name || "Unknown"}</div>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "#9A948B", textTransform: "uppercase" }}>{vol.type}</div>
           </div>
         </div>
-        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: statusColor, textTransform: "uppercase", background: `${statusColor}15`, padding: "5px 10px", borderRadius: 3, display: "inline-block", marginBottom: 12 }}>
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: statusColor, textTransform: "uppercase", background: `${statusColor}15`, padding: "5px 10px", borderRadius: 3, display: "inline-block", marginBottom: 12 }}>
           {getVolunteerStatusLabel(vol.status)}
         </div>
         {skills.length > 0 && (
           <div style={{ marginBottom: 10 }}>
-            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>Skills</div>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "#9A948B", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>Skills</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
               {skills.map((skill) => (
-                <span key={skill} style={{ fontFamily: "'Barlow', sans-serif", fontSize: 11, color: "#F0EDE8", background: "rgba(255,107,43,0.1)", border: "1px solid rgba(255,107,43,0.2)", padding: "3px 8px", borderRadius: 2 }}>{skill}</span>
+                <span key={skill} style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "#F2EEE7", background: "rgba(255,122,61,0.1)", border: "1px solid rgba(255,122,61,0.2)", padding: "3px 8px", borderRadius: 2 }}>{skill}</span>
               ))}
             </div>
           </div>
         )}
         {equipment.length > 0 && (
           <div style={{ marginBottom: 12 }}>
-            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>Equipment</div>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "#9A948B", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>Equipment</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
               {equipment.map((eq) => (
-                <span key={eq} style={{ fontFamily: "'Barlow', sans-serif", fontSize: 11, color: "#F0EDE8", background: "rgba(59,139,255,0.1)", border: "1px solid rgba(59,139,255,0.2)", padding: "3px 8px", borderRadius: 2 }}>{eq}</span>
+                <span key={eq} style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "#F2EEE7", background: "rgba(124,178,255,0.1)", border: "1px solid rgba(124,178,255,0.2)", padding: "3px 8px", borderRadius: 2 }}>{eq}</span>
               ))}
             </div>
           </div>
         )}
         {distanceInfo && (
-          <div style={{ background: "linear-gradient(135deg,rgba(46,204,113,0.15),rgba(46,204,113,0.05))", border: "1px solid rgba(46,204,113,0.3)", borderRadius: 4, padding: 12, marginTop: 10 }}>
-            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: "#2ECC71", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 8 }}>Route Info</div>
+          <div style={{ background: "linear-gradient(135deg,rgba(74,222,148,0.15),rgba(74,222,148,0.05))", border: "1px solid rgba(74,222,148,0.3)", borderRadius: 4, padding: 12, marginTop: 10 }}>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "#4ADE94", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 8 }}>Route Info</div>
             <div style={{ display: "flex", gap: 16 }}>
               <div>
-                <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 20, fontWeight: 700, color: "#2ECC71" }}>{distanceInfo.distance}</div>
-                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: "#9CA3AF", textTransform: "uppercase" }}>Distance</div>
+                <div style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 700, color: "#4ADE94" }}>{distanceInfo.distance}</div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "#9A948B", textTransform: "uppercase" }}>Distance</div>
               </div>
               <div>
-                <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 20, fontWeight: 700, color: "#F0EDE8" }}>{distanceInfo.duration}</div>
-                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: "#9CA3AF", textTransform: "uppercase" }}>Est. Time</div>
+                <div style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 700, color: "#F2EEE7" }}>{distanceInfo.duration}</div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "#9A948B", textTransform: "uppercase" }}>Est. Time</div>
               </div>
             </div>
           </div>
         )}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8, paddingTop: 8, borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-          {vol.mobile_no && <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#9CA3AF" }}>📞 {vol.mobile_no}</span>}
-          {vol.tier && <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#9CA3AF" }}>Tier {vol.tier}</span>}
-          {vol.last_seen && <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#9CA3AF" }}>👁 {formatRelative(vol.last_seen, now)}</span>}
+          {vol.mobile_no && <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "#9A948B" }}>📞 {vol.mobile_no}</span>}
+          {vol.tier && <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "#9A948B" }}>Tier {vol.tier}</span>}
+          {vol.last_seen && <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "#9A948B" }}>👁 {formatRelative(vol.last_seen, now)}</span>}
         </div>
       </div>
     </div>
@@ -296,11 +301,11 @@ function VolunteerPopup({ vol, isDestination, distanceInfo, now }: { vol: Volunt
 
 function PoiPopup({ poi }: { poi: POIPlace }) {
   return (
-    <div style={{ background: "#13161B", minWidth: 200, borderRadius: 4, overflow: "hidden", boxShadow: "0 12px 40px rgba(0,0,0,0.6)", borderLeft: `3px solid ${poi.category === "hospital" ? "#3B8BFF" : "#2ECC71"}` }}>
+    <div style={{ background: "#121215", minWidth: 200, borderRadius: 4, overflow: "hidden", boxShadow: "0 12px 40px rgba(0,0,0,0.6)", borderLeft: `3px solid ${poi.category === "hospital" ? "#7CB2FF" : "#4ADE94"}` }}>
       <div style={{ padding: "12px 14px" }}>
-        <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 14, fontWeight: 600, color: "#F0EDE8", marginBottom: 4 }}>{poi.name}</div>
-        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: "#9CA3AF", textTransform: "uppercase", marginBottom: 4 }}>{poi.category === "hospital" ? "Hospital" : "Shelter / relief"}</div>
-        {poi.address && <div style={{ fontFamily: "'Barlow', sans-serif", fontSize: 11, color: "#D1D5DB" }}>{poi.address}</div>}
+        <div style={{ fontFamily: "var(--font-display)", fontSize: 14, fontWeight: 600, color: "#F2EEE7", marginBottom: 4 }}>{poi.name}</div>
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "#9A948B", textTransform: "uppercase", marginBottom: 4 }}>{poi.category === "hospital" ? "Hospital" : "Shelter / relief"}</div>
+        {poi.address && <div style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "#BDB6AC" }}>{poi.address}</div>}
       </div>
     </div>
   );
@@ -315,7 +320,7 @@ export default function MapboxMap({ reports, filters, layers, onReportSelect, se
   const { members: taskForceMembers } = useTaskForceMemberLocations();
 
   const [mapLoaded, setMapLoaded] = useState(false);
-  const [mapStyle, setMapStyle] = useState<keyof typeof MAP_STYLES>("streets");
+  const [mapStyle, setMapStyle] = useState<MapStyle>("dark");
   const [originReport, setOriginReport] = useState<LocatedReport | null>(null);
   const [destinationVolunteer, setDestinationVolunteer] = useState<Volunteer | null>(null);
   const [measureRoute, setMeasureRoute] = useState<{ geometry: LineGeometry; distance: string; duration: string } | null>(null);
@@ -547,7 +552,7 @@ export default function MapboxMap({ reports, filters, layers, onReportSelect, se
 
   if (!MAPBOX_TOKEN) {
     return (
-      <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+      <div className="absolute inset-0 flex items-center justify-center bg-surface-2">
         <p className="font-mono text-[11px] text-alert">Map unavailable: NEXT_PUBLIC_MAPBOX_TOKEN is not configured.</p>
       </div>
     );
@@ -606,14 +611,14 @@ export default function MapboxMap({ reports, filters, layers, onReportSelect, se
             id="mission-routes-temp"
             type="line"
             filter={["!=", ["get", "isRealRoute"], true]}
-            paint={{ "line-color": "#FF6B2B", "line-width": 2, "line-dasharray": [4, 3], "line-opacity": 0.5 }}
+            paint={{ "line-color": "#FF7A3D", "line-width": 2, "line-dasharray": [4, 3], "line-opacity": 0.5 }}
           />
           <Layer
             id="mission-routes-real"
             type="line"
             filter={["==", ["get", "isRealRoute"], true]}
             layout={{ "line-join": "round", "line-cap": "round" }}
-            paint={{ "line-color": "#FF6B2B", "line-width": 3, "line-opacity": 0.85 }}
+            paint={{ "line-color": "#FF7A3D", "line-width": 3, "line-opacity": 0.85 }}
           />
         </Source>
 
@@ -623,7 +628,7 @@ export default function MapboxMap({ reports, filters, layers, onReportSelect, se
               id="measure-route-line"
               type="line"
               layout={{ "line-join": "round", "line-cap": "round" }}
-              paint={{ "line-color": "#3B8BFF", "line-width": 5, "line-opacity": 0.9 }}
+              paint={{ "line-color": "#7CB2FF", "line-width": 5, "line-opacity": 0.9 }}
             />
           </Source>
         )}
@@ -687,12 +692,12 @@ export default function MapboxMap({ reports, filters, layers, onReportSelect, se
       </Map>
 
       {!mapLoaded && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-50 z-10">
+        <div className="absolute inset-0 flex items-center justify-center bg-surface-2 z-10">
           <div className="flex flex-col items-center gap-4">
             <div className="w-12 h-12 border-[3px] border-orange border-t-transparent rounded-full animate-spin" />
             <div className="text-center">
-              <div className="font-mono text-[12px] font-bold text-gray-500 uppercase tracking-[0.15em] mb-1">Initializing Map</div>
-              <div className="font-mono text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Loading incident data...</div>
+              <div className="font-mono text-[12px] font-bold text-dim uppercase tracking-[0.15em] mb-1">Initializing Map</div>
+              <div className="font-mono text-[10px] font-semibold text-dim uppercase tracking-wider">Loading incident data...</div>
             </div>
           </div>
         </div>
@@ -700,21 +705,21 @@ export default function MapboxMap({ reports, filters, layers, onReportSelect, se
 
       <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
         <button
-          onClick={() => setMapStyle(mapStyle === "streets" ? "satellite" : mapStyle === "satellite" ? "navigation" : "streets")}
-          className="px-3 py-1.5 bg-white/95 backdrop-blur-sm border border-gray-200 font-mono text-[10px] font-semibold text-gray-600 uppercase tracking-wider hover:text-orange hover:border-orange/50 transition-color-snappy rounded-sm shadow-sm"
+          onClick={() => setMapStyle(NEXT_MAP_STYLE[mapStyle])}
+          className="px-3 py-1.5 bg-void/85 backdrop-blur-sm border border-border-dim font-mono text-[10px] font-semibold text-muted uppercase tracking-wider hover:text-orange hover:border-orange/50 transition-color-snappy rounded-sm shadow-sm"
         >
-          {mapStyle === "streets" ? "🛰️ SATELLITE" : mapStyle === "satellite" ? "🧭 NAV" : "🗺️ STREETS"}
+          {MAP_STYLE_LABELS[NEXT_MAP_STYLE[mapStyle]]}
         </button>
         <button
           onClick={fitBoundsToData}
-          className="px-3 py-1.5 bg-white/95 backdrop-blur-sm border border-gray-200 font-mono text-[10px] text-gray-600 uppercase tracking-wider hover:text-orange hover:border-orange/50 transition-all rounded-sm shadow-sm"
+          className="px-3 py-1.5 bg-void/85 backdrop-blur-sm border border-border-dim font-mono text-[10px] text-muted uppercase tracking-wider hover:text-orange hover:border-orange/50 transition-all rounded-sm shadow-sm"
         >
           🎯 FIT VIEW
         </button>
         {(originReport || destinationVolunteer) && (
           <button
             onClick={clearRouteSelection}
-            className="px-3 py-1.5 bg-red-50 backdrop-blur-sm border border-red-200 font-mono text-[10px] text-red-600 uppercase tracking-wider hover:bg-red-100 transition-all rounded-sm shadow-sm"
+            className="px-3 py-1.5 bg-alert/10 backdrop-blur-sm border border-alert/35 font-mono text-[10px] text-alert uppercase tracking-wider hover:bg-alert/15 transition-all rounded-sm shadow-sm"
           >
             ✕ CLEAR ROUTE
           </button>
@@ -723,30 +728,30 @@ export default function MapboxMap({ reports, filters, layers, onReportSelect, se
 
       {originReport && !destinationVolunteer && (
         <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20">
-          <div className="px-4 py-2 bg-white/95 backdrop-blur-sm border border-orange/50 font-mono text-[11px] text-orange uppercase tracking-wider rounded-sm shadow-sm">
+          <div className="px-4 py-2 bg-void/85 backdrop-blur-sm border border-orange/50 font-mono text-[11px] text-orange uppercase tracking-wider rounded-sm shadow-sm">
             📍 Report selected · Click a responder to measure distance
           </div>
         </div>
       )}
 
       <div className="absolute bottom-20 left-4 z-10">
-        <div className="px-3 py-2.5 bg-white/95 backdrop-blur-sm border border-gray-200 rounded-sm shadow-sm">
-          <div className="text-[9px] font-mono text-gray-500 uppercase tracking-[0.15em] mb-2">Legend</div>
+        <div className="px-3 py-2.5 bg-void/85 backdrop-blur-sm border border-border-dim rounded-sm shadow-sm">
+          <div className="text-[9px] font-mono text-dim uppercase tracking-[0.15em] mb-2">Legend</div>
           <div className="flex flex-col gap-1.5">
             {Object.entries(SITUATION_STYLES).map(([type, data]) => (
               <div key={type} className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: data.color }} />
-                <span className="font-mono text-[9px] text-gray-500 uppercase tracking-wider">{data.label}</span>
+                <span className="font-mono text-[9px] text-dim uppercase tracking-wider">{data.label}</span>
               </div>
             ))}
-            <div className="mt-2 pt-2 border-t border-gray-200/50 flex flex-col gap-1">
+            <div className="mt-2 pt-2 border-t border-border-dim/50 flex flex-col gap-1">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-[#2ECC71] border-2 border-white shadow" />
-                <span className="font-mono text-[9px] text-gray-500 uppercase">Volunteer ready</span>
+                <div className="w-3 h-3 rounded-full bg-ops border-2 border-white shadow" />
+                <span className="font-mono text-[9px] text-dim uppercase">Volunteer ready</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-[#FF6B2B] border-2 border-white shadow" />
-                <span className="font-mono text-[9px] text-gray-500 uppercase">On mission</span>
+                <div className="w-3 h-3 rounded-full bg-orange border-2 border-white shadow" />
+                <span className="font-mono text-[9px] text-dim uppercase">On mission</span>
               </div>
             </div>
           </div>
@@ -754,7 +759,7 @@ export default function MapboxMap({ reports, filters, layers, onReportSelect, se
       </div>
 
       <div className="absolute bottom-4 left-4 z-10 flex items-center gap-2">
-        <div className="px-3 py-1.5 bg-white/95 backdrop-blur-sm border border-gray-200 font-mono text-[9px] text-gray-500 rounded-sm shadow-sm">
+        <div className="px-3 py-1.5 bg-void/85 backdrop-blur-sm border border-border-dim font-mono text-[9px] text-dim rounded-sm shadow-sm">
           {filteredReports.length} ACTIVE REPORTS · {volunteers.length} RESPONDERS IN VIEW
           {reports.length > locatedReports.length && ` · ${reports.length - locatedReports.length} WITHOUT GPS`}
         </div>

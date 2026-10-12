@@ -31,7 +31,7 @@ export default function OperationalToast() {
               initial={{ y: -50, opacity: 0, scale: 0.9 }}
               animate={{ y: 0, opacity: 1, scale: 1 }}
               exit={{ x: 100, opacity: 0, scale: 0.9 }}
-              className="w-full max-w-md bg-white border border-border-dim shadow-[0_10px_30px_rgba(0,0,0,0.15)] pointer-events-auto overflow-hidden flex"
+              className="w-full max-w-md bg-surface-1 border border-border-dim shadow-[0_12px_32px_rgba(0,0,0,0.55)] pointer-events-auto overflow-hidden flex"
               style={{ borderLeft: `3px solid ${alert.color}` }}
               role="status"
             >

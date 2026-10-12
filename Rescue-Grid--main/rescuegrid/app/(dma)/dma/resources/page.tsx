@@ -48,13 +48,13 @@ export default function ResourcesPage() {
   const lowStockCount = resources.filter((r) => (r.quantity_available ?? r.quantity) <= r.low_stock_threshold).length;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-surface-2">
       <div className="pt-[52px]">
-        <div className="border-b border-gray-200 bg-white">
+        <div className="border-b border-border-dim bg-surface-1">
           <div className="px-4 sm:px-6 py-4 flex flex-wrap justify-between items-center gap-3">
             <div>
-              <h1 className="font-inter font-bold text-xl text-gray-900 uppercase tracking-wider">RESOURCES</h1>
-              <p className="font-ibm-mono text-[10px] text-gray-500 uppercase tracking-wider">
+              <h1 className="font-inter font-bold text-xl text-ink uppercase tracking-wider">RESOURCES</h1>
+              <p className="font-ibm-mono text-[10px] text-dim uppercase tracking-wider">
                 {resources.length} items{lowStockCount > 0 && <span className="text-alert"> · {lowStockCount} low stock</span>}
               </p>
             </div>
@@ -66,7 +66,7 @@ export default function ResourcesPage() {
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search inventory..."
                   aria-label="Search inventory"
-                  className="flex-1 min-w-0 sm:flex-none sm:w-56 px-3 py-2 bg-gray-50 border border-gray-200 rounded-sm font-inter text-sm focus:outline-none focus:border-orange"
+                  className="flex-1 min-w-0 sm:flex-none sm:w-56 px-3 py-2 bg-surface-2 border border-border-dim rounded-sm font-inter text-sm focus:outline-none focus:border-orange"
                 />
               )}
               <Button onClick={() => setShowCreateModal(true)} className="shrink-0">+ ADD RESOURCE</Button>
@@ -79,7 +79,7 @@ export default function ResourcesPage() {
               aria-selected={activeTab === "inventory"}
               onClick={() => setActiveTab("inventory")}
               className={`px-4 py-2 font-inter text-xs uppercase tracking-wider border-b-2 transition-colors ${
-                activeTab === "inventory" ? "text-orange border-orange" : "text-gray-500 border-transparent hover:text-gray-700"
+                activeTab === "inventory" ? "text-orange border-orange" : "text-dim border-transparent hover:text-muted"
               }`}
             >
               INVENTORY
@@ -92,7 +92,7 @@ export default function ResourcesPage() {
                 setAllocationFilterId(undefined);
               }}
               className={`px-4 py-2 font-inter text-xs uppercase tracking-wider border-b-2 transition-colors ${
-                activeTab === "allocations" ? "text-orange border-orange" : "text-gray-500 border-transparent hover:text-gray-700"
+                activeTab === "allocations" ? "text-orange border-orange" : "text-dim border-transparent hover:text-muted"
               }`}
             >
               ALLOCATIONS
@@ -104,15 +104,15 @@ export default function ResourcesPage() {
           {activeTab === "inventory" ? (
             loading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[1, 2, 3].map((i) => <div key={i} className="h-56 bg-white animate-pulse" />)}
+                {[1, 2, 3].map((i) => <div key={i} className="h-56 bg-surface-1 animate-pulse" />)}
               </div>
             ) : visibleResources.length === 0 ? (
               <div className="text-center py-12">
-                <p className="font-inter text-gray-500 text-sm uppercase tracking-wider">
+                <p className="font-inter text-dim text-sm uppercase tracking-wider">
                   {resources.length === 0 ? "NO RESOURCES LOGGED" : "NO RESOURCES MATCH YOUR SEARCH"}
                 </p>
                 {resources.length === 0 && (
-                  <p className="font-ibm-mono text-gray-500 text-xs mt-2">Click &quot;+ ADD RESOURCE&quot; to add your first resource</p>
+                  <p className="font-ibm-mono text-dim text-xs mt-2">Click &quot;+ ADD RESOURCE&quot; to add your first resource</p>
                 )}
               </div>
             ) : (
@@ -135,7 +135,7 @@ export default function ResourcesPage() {
             <div>
               {allocationFilterId && (
                 <div className="mb-4 flex items-center gap-3">
-                  <span className="font-inter text-xs text-gray-600">
+                  <span className="font-inter text-xs text-muted">
                     Showing allocations for <strong>{resources.find((r) => r.id === allocationFilterId)?.name || "resource"}</strong>
                   </span>
                   <button onClick={() => setAllocationFilterId(undefined)} className="text-orange font-inter text-xs hover:underline">

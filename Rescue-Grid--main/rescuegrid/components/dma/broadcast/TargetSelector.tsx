@@ -46,7 +46,7 @@ export default function TargetSelector({
                   target === t.value ? "border-orange bg-orange" : "border-muted"
                 }`}
               >
-                {target === t.value && <div className="w-2 h-2 bg-white" />}
+                {target === t.value && <div className="w-2 h-2 bg-surface-1" />}
               </div>
               <input
                 type="radio"

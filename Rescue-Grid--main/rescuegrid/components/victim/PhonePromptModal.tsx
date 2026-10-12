@@ -89,7 +89,7 @@ export default function PhonePromptModal({
 
         <div className="p-4 space-y-4">
           <div>
-            <label htmlFor="sos-phone" className="font-mono text-[10px] text-orange uppercase tracking-[0.2em] block mb-1">
+            <label htmlFor="sos-phone" className="font-mono text-[10px] text-muted uppercase tracking-[0.14em] block mb-1">
               Your Phone Number *
             </label>
             <input
@@ -111,7 +111,7 @@ export default function PhonePromptModal({
           </div>
 
           <div>
-            <label htmlFor="sos-details" className="font-mono text-[10px] text-orange uppercase tracking-[0.2em] block mb-1">
+            <label htmlFor="sos-details" className="font-mono text-[10px] text-muted uppercase tracking-[0.14em] block mb-1">
               Additional Details (optional)
             </label>
             <textarea
@@ -148,7 +148,7 @@ export default function PhonePromptModal({
           <button
             type="submit"
             disabled={busy}
-            className="w-full text-center font-display font-bold text-[13px] uppercase tracking-[0.15em] text-white bg-alert py-3 px-6 transition-all hover:bg-alert/90 active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2 clip-path-tactical"
+            className="w-full text-center font-display font-bold text-[13px] uppercase tracking-[0.15em] text-on-accent bg-alert py-3 px-6 transition-all hover:bg-alert/90 active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2 clip-path-tactical"
           >
             <span className="text-lg" aria-hidden="true">🚨</span>
             {busy ? "Sending…" : "Send SOS now"}

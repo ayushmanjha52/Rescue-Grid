@@ -57,6 +57,17 @@ Point your Twilio number's **Messaging webhook (HTTP POST)** at
 
 `npx web-push generate-vapid-keys`, then set `NEXT_PUBLIC_VAPID_KEY` / `VAPID_PRIVATE_KEY`. Volunteers enable alerts from their Profile page (the service worker is `public/sw.js`).
 
+### Deployment and uptime
+
+The app runs on Vercel (`vercel.json` pins the server to Tokyo, next to the database). Vercel serverless functions don't sleep, so there is no cold-start delay on the first visit.
+
+Supabase pauses free projects after a week without database activity. To keep the demo online, `GET /api/health` runs a tiny query and reports `{"status":"ok","database":"up"}` (or HTTP 503 if the database can't be reached). It is called:
+
+- once a day by the Vercel cron in `vercel.json`;
+- every 6 hours by the GitHub Action `.github/workflows/keep-alive.yml` (it can also be run by hand from the Actions tab).
+
+Any uptime monitor (UptimeRobot, cron-job.org, Better Stack) pointed at `/api/health` works as a third ping and emails you if the site goes down. If the project was already paused, restore it once from the Supabase dashboard. The pings keep it awake from then on.
+
 ## Scripts
 
 | Command | What it does |

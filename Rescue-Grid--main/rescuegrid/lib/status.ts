@@ -9,6 +9,21 @@ export function isSituation(value: unknown): value is Situation {
   return typeof value === 'string' && (SITUATIONS as readonly string[]).includes(value);
 }
 
+/** Colour per situation, used for card accents and map markers (night palette). */
+export const SITUATION_COLORS: Record<Situation, string> = {
+  food: '#4ADE94',
+  water: '#7CB2FF',
+  medical: '#F7B955',
+  rescue: '#FF6166',
+  shelter: '#BE9BFF',
+  missing: '#A8A29A',
+};
+
+/** Accent colour for a report's situation; brand orange for unknown values. */
+export function situationColor(situation: string): string {
+  return isSituation(situation) ? SITUATION_COLORS[situation] : '#FF7A3D';
+}
+
 export const URGENCIES = ['critical', 'urgent', 'moderate'] as const;
 export type Urgency = (typeof URGENCIES)[number];
 

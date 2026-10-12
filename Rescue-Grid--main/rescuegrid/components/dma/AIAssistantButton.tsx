@@ -20,7 +20,7 @@ export function AIAssistantButton({ isOpen, onClick }: AIAssistantButtonProps) {
         transition-all duration-150
         ${isOpen 
           ? 'text-orange bg-orange/10' 
-          : 'text-dim hover:text-ink hover:bg-gray-100'
+          : 'text-dim hover:text-ink hover:bg-surface-3'
         }
       `}
     >
@@ -31,7 +31,7 @@ export function AIAssistantButton({ isOpen, onClick }: AIAssistantButtonProps) {
         <Sparkles className="w-4 h-4" />
       </motion.div>
       <span>INTEL</span>
-      <span className="hidden lg:flex items-center gap-0.5 text-[9px] text-dim/60 px-1.5 py-0.5 bg-gray-100 rounded">
+      <span className="hidden lg:flex items-center gap-0.5 text-[9px] text-dim/60 px-1.5 py-0.5 bg-surface-3 rounded">
         <Command className="w-3 h-3" />
         <span>K</span>
       </span>

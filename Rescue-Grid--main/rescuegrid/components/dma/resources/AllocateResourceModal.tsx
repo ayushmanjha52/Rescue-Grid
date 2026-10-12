@@ -125,7 +125,7 @@ export default function AllocateResourceModal({ isOpen, onClose, onAllocated, re
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="allocate-title">
-      <div className="bg-white w-full max-w-md clip-path-tactical shadow-xl">
+      <div className="bg-surface-1 w-full max-w-md clip-path-tactical shadow-xl">
         <div className="border-b-2 border-orange px-4 py-3">
           <div className="flex justify-between items-center">
             <div>
@@ -163,7 +163,7 @@ export default function AllocateResourceModal({ isOpen, onClose, onAllocated, re
                     setSelectedTargetId("");
                   }}
                   className={`px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider border transition-colors ${
-                    targetType === type ? "bg-orange text-white border-orange" : "bg-transparent text-muted border-border-dim hover:border-orange"
+                    targetType === type ? "bg-orange text-on-accent border-orange" : "bg-transparent text-muted border-border-dim hover:border-orange"
                   }`}
                 >
                   {type === "task_force" ? "TASK FORCE" : type === "assignment" ? "MISSION" : "VOLUNTEER"}
@@ -188,7 +188,7 @@ export default function AllocateResourceModal({ isOpen, onClose, onAllocated, re
           </div>
 
           <div>
-            <label htmlFor="allocate-notes" className="font-mono text-[10px] text-orange uppercase tracking-[0.2em] mb-1 block">NOTES</label>
+            <label htmlFor="allocate-notes" className="font-mono text-[10px] text-muted uppercase tracking-[0.14em] mb-1 block">NOTES</label>
             <textarea
               id="allocate-notes"
               value={notes}

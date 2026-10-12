@@ -119,7 +119,7 @@ export default function CreateTaskForceModal({ onClose, onCreated }: CreateTaskF
 
           <div className="space-y-5">
             <div>
-              <label htmlFor="tf-name" className="font-mono text-[10px] text-orange uppercase tracking-[0.2em] block mb-1">
+              <label htmlFor="tf-name" className="font-mono text-[10px] text-muted uppercase tracking-[0.14em] block mb-1">
                 NAME *
               </label>
               <input
@@ -134,7 +134,7 @@ export default function CreateTaskForceModal({ onClose, onCreated }: CreateTaskF
             </div>
 
             <div>
-              <label htmlFor="tf-member-search" className="font-mono text-[10px] text-orange uppercase tracking-[0.2em] block mb-2">
+              <label htmlFor="tf-member-search" className="font-mono text-[10px] text-muted uppercase tracking-[0.14em] block mb-2">
                 MEMBERS * <span className="text-dim normal-case tracking-normal">({selectedMembers.length} selected — first selected is the leader)</span>
               </label>
               <input
@@ -164,7 +164,7 @@ export default function CreateTaskForceModal({ onClose, onCreated }: CreateTaskF
                       >
                         <div className="flex items-center gap-3">
                           <div className={`w-5 h-5 border ${isSelected ? "border-ops bg-ops" : "border-border-dim"} flex items-center justify-center`}>
-                            {isSelected && <span className="text-white text-[10px]">✓</span>}
+                            {isSelected && <span className="text-on-accent text-[10px]">✓</span>}
                           </div>
                           <div>
                             <div className="font-body text-[13px] text-ink font-semibold">{vol.name}</div>
@@ -180,7 +180,7 @@ export default function CreateTaskForceModal({ onClose, onCreated }: CreateTaskF
             </div>
 
             <div>
-              <label htmlFor="tf-mission" className="font-mono text-[10px] text-orange uppercase tracking-[0.2em] block mb-1">
+              <label htmlFor="tf-mission" className="font-mono text-[10px] text-muted uppercase tracking-[0.14em] block mb-1">
                 HAND OVER A MISSION (optional)
               </label>
               <select

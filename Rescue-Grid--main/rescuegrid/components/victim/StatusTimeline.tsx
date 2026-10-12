@@ -19,11 +19,11 @@ const STEPS = [
 export default function StatusTimeline({ status }: StatusTimelineProps) {
   if (status === 'duplicate') {
     return (
-      <div className="w-full px-4 py-4 bg-amber-50 border-y border-amber-100 text-center">
-        <p className="font-mono text-[11px] text-amber-700 uppercase tracking-wider">
+      <div className="w-full px-4 py-4 bg-caution/10 border-y border-caution/25 text-center">
+        <p className="font-mono text-[11px] text-caution uppercase tracking-wider">
           This report was merged with an earlier report for the same emergency.
         </p>
-        <p className="font-body text-[12px] text-amber-700 mt-1">Help is being coordinated on the original report.</p>
+        <p className="font-body text-[12px] text-caution mt-1">Help is being coordinated on the original report.</p>
       </div>
     );
   }
@@ -43,9 +43,9 @@ export default function StatusTimeline({ status }: StatusTimelineProps) {
   const currentIndex = getStepIndex(status);
 
   return (
-    <div className="w-full px-4 py-6 bg-gray-50 border-y border-gray-200">
+    <div className="w-full px-4 py-6 bg-surface-2 border-y border-border-dim">
       <div className="relative flex justify-between">
-        <div className="absolute top-4 left-0 w-full h-0.5 bg-gray-200 -z-0">
+        <div className="absolute top-4 left-0 w-full h-0.5 bg-surface-4 -z-0">
           <div 
             className="h-full bg-orange transition-all duration-500" 
             style={{ width: `${(currentIndex / (STEPS.length - 1)) * 100}%` }}
@@ -61,15 +61,15 @@ export default function StatusTimeline({ status }: StatusTimelineProps) {
             <div key={step.id} className="relative z-10 flex flex-col items-center gap-2">
               <div 
                 className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
-                  isCompleted ? 'bg-orange text-white' : 
-                  isActive ? 'bg-orange text-white animate-pulse shadow-lg shadow-orange/30' : 
-                  'bg-gray-100 text-gray-500 border border-gray-200'
+                  isCompleted ? 'bg-orange text-on-accent' : 
+                  isActive ? 'bg-orange text-on-accent animate-pulse shadow-lg shadow-orange/30' : 
+                  'bg-surface-3 text-dim border border-border-dim'
                 }`}
               >
                 <Icon className="w-4 h-4" />
               </div>
               <span className={`font-mono text-[8px] uppercase tracking-wider text-center w-12 ${
-                isActive ? 'text-orange font-bold' : 'text-gray-500'
+                isActive ? 'text-orange font-bold' : 'text-dim'
               }`}>
                 {step.label}
               </span>

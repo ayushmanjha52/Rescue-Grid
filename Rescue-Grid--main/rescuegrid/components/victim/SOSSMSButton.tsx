@@ -212,7 +212,7 @@ export default function SOSSMSButton({
         type="button"
         onClick={() => setShowModal(true)}
         disabled={isLoading}
-        className="w-full text-center font-display font-bold text-lg uppercase tracking-[0.15em] text-white bg-red-500 py-4 px-4 transition-all hover:bg-red-600 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-sm shadow-lg shadow-red-500/30 animate-attention-bounce"
+        className="w-full text-center font-display font-bold text-lg uppercase tracking-[0.15em] text-on-accent bg-alert py-4 px-4 transition-all hover:bg-alert/90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl shadow-[0_12px_40px_-8px_rgba(255,97,102,0.55)] animate-attention-bounce"
       >
         {isLoading ? (
           <>
@@ -251,8 +251,8 @@ export default function SOSSMSButton({
       )}
 
       {notice && (
-        <div className="mt-3 p-3 bg-amber-50 border border-amber-100 rounded-sm" role="status">
-          <p className="font-mono text-xs text-amber-700 text-center">{notice}</p>
+        <div className="mt-3 p-3 bg-caution/10 border border-caution/25 rounded-sm" role="status">
+          <p className="font-mono text-xs text-caution text-center">{notice}</p>
         </div>
       )}
     </>

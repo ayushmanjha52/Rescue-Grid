@@ -1,33 +1,33 @@
 @import "tailwindcss";
 
 :root {
-  /* Light Theme - UI Theme Overhaul */
-  --bg0: #FFFFFF;
-  --bg1: #FAFBFC;
-  --bg2: #F5F6F8;
-  --bg3: #EEF0F3;
-  --bg4: #E5E8EC;
-  /* Accent colours are dark enough for small text on white and white text on
-     them (WCAG AA, 4.5:1): orange 4.8, red 5.0, green 4.7, blue 5.9, amber 5.0. */
-  --orange: #C44A12;
-  --orange-dim: rgba(196, 74, 18, 0.12);
-  --orange-glow: rgba(196, 74, 18, 0.25);
-  --red-alert: #D32F2F;
-  --green-ok: #1E8449;
-  --blue-accent: #1F5FCC;
-  --amber: #B45309;
-  --purple: #7E22CE;
-  --border: rgba(196, 74, 18, 0.15);
-  --border-dim: rgba(0, 0, 0, 0.08);
+  color-scheme: dark;
 
-  /* Font families */
-  --font-display: 'Barlow Condensed', sans-serif;
-  --font-body: 'Barlow', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
-  
-  /* Utility Stack Fonts - High Readability */
-  --font-inter: 'Inter', sans-serif;
-  --font-ibm-mono: 'IBM Plex Mono', monospace;
+  /* Night palette: warm near-black surfaces, each step a little lighter. */
+  --bg0: #0B0B0D;
+  --bg1: #121215;
+  --bg2: #18181C;
+  --bg3: #202026;
+  --bg4: #2A2A31;
+  /* Signal colours are bright enough for small text on every surface (WCAG AA,
+     4.5:1 or better). Solid fills carry dark text (--on-accent), which reads at
+     6.7:1 or better on all of them; white text on these would not. */
+  --orange: #FF7A3D;
+  --orange-dim: rgba(255, 122, 61, 0.12);
+  --orange-glow: rgba(255, 122, 61, 0.28);
+  --red-alert: #FF6166;
+  --green-ok: #4ADE94;
+  --blue-accent: #7CB2FF;
+  --amber: #F7B955;
+  --purple: #BE9BFF;
+  --on-accent: #0B0B0D;
+  --border: rgba(255, 122, 61, 0.24);
+  --border-dim: rgba(255, 255, 255, 0.08);
+
+  /* The font families themselves come from next/font (app/layout.tsx). These
+     older names are kept as aliases so existing classes keep working. */
+  --font-inter: var(--font-body);
+  --font-ibm-mono: var(--font-mono);
 
   /* Typography Scale - Enhanced for Readability */
   --text-xs: 0.875rem;
@@ -38,14 +38,14 @@
   --text-2xl: 1.875rem;
   --text-3xl: 2.25rem;
 
-  /* Enhanced Contrast Colors */
-  --text-primary: #0D0F12;
-  --text-secondary: #3D4552;
-  --text-dim: #5A6575;
+  /* Text: warm ivory rather than pure white, which glares on black. */
+  --text-primary: #F2EEE7;
+  --text-secondary: #BDB6AC;
+  --text-dim: #9A948B;
 }
 
 @theme inline {
-  /* Colors - Light Theme */
+  /* Colors */
   --color-void: var(--bg0);
   --color-surface-1: var(--bg1);
   --color-surface-2: var(--bg2);
@@ -64,15 +64,17 @@
   --color-dim: var(--text-dim);
   --color-blue-accent: var(--blue-accent);
   --color-purple: var(--purple);
+  --color-on-accent: var(--on-accent);
   --color-border: var(--border);
   --color-border-dim: var(--border-dim);
 
   /* Fonts */
   --font-display: var(--font-display);
   --font-body: var(--font-body);
+  --font-serif: var(--font-serif);
   --font-mono: var(--font-mono);
-  --font-inter: var(--font-inter);
-  --font-ibm-mono: var(--font-ibm-mono);
+  --font-inter: var(--font-body);
+  --font-ibm-mono: var(--font-mono);
 
   /* Clip path utilities */
   --clip-tactical: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
@@ -110,10 +112,10 @@
 
 @keyframes glow-pulse {
   0%, 100% {
-    box-shadow: 0 0 20px rgba(249, 115, 22, 0.4);
+    box-shadow: 0 0 20px rgba(255, 122, 61, 0.35);
   }
   50% {
-    box-shadow: 0 0 30px rgba(249, 115, 22, 0.6);
+    box-shadow: 0 0 30px rgba(255, 122, 61, 0.55);
   }
 }
 
@@ -154,6 +156,58 @@ body {
   background: var(--bg0);
   color: var(--text-primary);
   font-family: var(--font-body);
+  text-rendering: optimizeLegibility;
+}
+
+/* In the base layer so Tailwind utilities on an element still win. */
+@layer base {
+  ::selection {
+    background: var(--orange);
+    color: var(--on-accent);
+  }
+
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.01em;
+  }
+
+  input,
+  select,
+  textarea {
+    color-scheme: dark;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--text-dim);
+    opacity: 1;
+  }
+}
+
+/* Disabled solid buttons turn neutral; a half-transparent accent on black
+   reads as muddy brown. More specific than the bg/opacity utilities it replaces. */
+@layer utilities {
+  button:disabled:is(.bg-orange, .bg-ops, .bg-intel) {
+    background-color: var(--bg4);
+    color: var(--text-dim);
+    opacity: 1;
+    box-shadow: none;
+  }
+}
+
+/* A soft ember glow behind page heroes; purely decorative. */
+.ember-glow {
+  background:
+    radial-gradient(60% 45% at 50% 0%, rgba(255, 122, 61, 0.16), transparent 70%),
+    radial-gradient(40% 30% at 85% 10%, rgba(124, 178, 255, 0.06), transparent 70%),
+    var(--bg0);
+}
+
+/* Map controls and attribution follow the dark theme. */
+.mapboxgl-ctrl-attrib,
+.mapboxgl-ctrl-group {
+  filter: invert(0.92) hue-rotate(180deg);
 }
 
 /* Angular clip-path buttons / panels */
@@ -194,7 +248,7 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border-dim);
+  background: var(--bg4);
   border-radius: 3px;
 }
 
@@ -212,7 +266,7 @@ body {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: var(--border-dim);
+  background: var(--bg4);
 }
 
 /* Focus ring for accessibility */

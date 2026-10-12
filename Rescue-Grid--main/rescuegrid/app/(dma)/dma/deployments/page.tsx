@@ -96,12 +96,12 @@ export default function DeploymentsPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-surface-2">
       <div className="pt-[52px] p-6 max-w-5xl mx-auto">
         <div className="flex items-center justify-between mb-6 mt-6">
           <div>
-            <h1 className="font-inter text-[28px] font-bold uppercase tracking-wide text-gray-900">TASK FORCES</h1>
-            <p className="font-ibm-mono text-[11px] text-gray-500 uppercase tracking-wider mt-1">
+            <h1 className="font-inter text-[28px] font-bold uppercase tracking-wide text-ink">TASK FORCES</h1>
+            <p className="font-ibm-mono text-[11px] text-dim uppercase tracking-wider mt-1">
               {taskForces.filter((tf) => tf.status === "active").length} ACTIVE · {taskForces.filter((tf) => tf.status === "dissolved").length} DISSOLVED
             </p>
           </div>
@@ -112,13 +112,13 @@ export default function DeploymentsPage() {
 
         {loading ? (
           <div className="space-y-3">
-            {[1, 2, 3].map((i) => <div key={i} className="h-20 bg-white border border-gray-100 animate-pulse" />)}
+            {[1, 2, 3].map((i) => <div key={i} className="h-20 bg-surface-1 border border-border-dim animate-pulse" />)}
           </div>
         ) : sortedTaskForces.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="text-[48px] mb-4 opacity-40">👥</div>
-            <p className="font-inter text-[13px] text-gray-500 uppercase tracking-wider">NO TASK FORCES</p>
-            <p className="font-ibm-mono text-[11px] text-gray-500 mt-2">Create a task force to organize volunteer teams</p>
+            <p className="font-inter text-[13px] text-dim uppercase tracking-wider">NO TASK FORCES</p>
+            <p className="font-ibm-mono text-[11px] text-dim mt-2">Create a task force to organize volunteer teams</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -129,13 +129,13 @@ export default function DeploymentsPage() {
               return (
                 <div
                   key={tf.id}
-                  className={`bg-white border border-gray-100 border-l-[3px] rounded-sm shadow-sm overflow-hidden ${
+                  className={`bg-surface-1 border border-border-dim border-l-[3px] rounded-sm shadow-sm overflow-hidden ${
                     tf.status === "active" ? "border-l-green-500" : "border-l-gray-300 opacity-75"
                   }`}
                 >
                   <button
                     type="button"
-                    className="w-full text-left p-4 hover:bg-gray-50 transition-colors"
+                    className="w-full text-left p-4 hover:bg-surface-2 transition-colors"
                     aria-expanded={isExpanded}
                     onClick={() => setExpandedId(isExpanded ? null : tf.id)}
                   >
@@ -144,41 +144,41 @@ export default function DeploymentsPage() {
                         <div className="flex items-center gap-2 mb-1">
                           <span className="font-ibm-mono text-[10px] text-orange uppercase">TF</span>
                           <StatusBadge status={tf.status === "active" ? "ready" : "standby"} label={tf.status.toUpperCase()} />
-                          <span className="font-ibm-mono text-[10px] text-gray-500 uppercase">
+                          <span className="font-ibm-mono text-[10px] text-dim uppercase">
                             {tf.member_count} MEMBER{tf.member_count !== 1 ? "S" : ""}
                           </span>
                         </div>
-                        <p className="font-inter text-[14px] text-gray-900 font-semibold">{tf.name}</p>
+                        <p className="font-inter text-[14px] text-ink font-semibold">{tf.name}</p>
                         {tf.assignment_name && (
-                          <p className="font-ibm-mono text-[10px] text-blue-600 truncate mt-1">
+                          <p className="font-ibm-mono text-[10px] text-intel truncate mt-1">
                             📍 {tf.assignment_name}
                             {tf.assignment_status && ` · ${assignmentStatusLabel(tf.assignment_status)}`}
                           </p>
                         )}
                       </div>
-                      <div className="font-ibm-mono text-[10px] text-gray-500 shrink-0">
+                      <div className="font-ibm-mono text-[10px] text-dim shrink-0">
                         {new Date(tf.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
                       </div>
                     </div>
                   </button>
 
                   {isExpanded && (
-                    <div className="px-4 pb-4 border-t border-gray-100 pt-3 space-y-3">
+                    <div className="px-4 pb-4 border-t border-border-dim pt-3 space-y-3">
                       {tf.members?.length > 0 && (
                         <div>
-                          <div className="font-ibm-mono text-[10px] text-gray-500 uppercase tracking-wider mb-2">MEMBERS</div>
+                          <div className="font-ibm-mono text-[10px] text-dim uppercase tracking-wider mb-2">MEMBERS</div>
                           <div className="grid grid-cols-2 gap-2">
                             {tf.members.map((member, idx) => (
-                              <div key={member.volunteer_id || idx} className="flex items-center gap-2 p-2 bg-gray-50 rounded-sm">
-                                <div className="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center font-inter text-[11px] text-green-700 font-bold">
+                              <div key={member.volunteer_id || idx} className="flex items-center gap-2 p-2 bg-surface-2 rounded-sm">
+                                <div className="w-8 h-8 rounded-full bg-ops/10 flex items-center justify-center font-inter text-[11px] text-ops font-bold">
                                   {member.volunteer?.name?.charAt(0) || "?"}
                                 </div>
                                 <div>
-                                  <div className="font-inter text-[12px] text-gray-900">
+                                  <div className="font-inter text-[12px] text-ink">
                                     {member.volunteer?.name || "Unknown"}
                                     {member.member_type === "leader" && <span className="ml-1 text-[9px] text-orange">★ LEAD</span>}
                                   </div>
-                                  <div className="font-ibm-mono text-[9px] text-gray-500">
+                                  <div className="font-ibm-mono text-[9px] text-dim">
                                     {member.volunteer?.type || "Individual"} · {member.volunteer?.status || "unknown"}
                                   </div>
                                 </div>
@@ -188,7 +188,7 @@ export default function DeploymentsPage() {
                         </div>
                       )}
 
-                      <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
+                      <div className="flex items-center gap-3 pt-2 border-t border-border-dim">
                         <Button variant="secondary" size="small" onClick={() => router.push(`/dma/messages?tf=${tf.id}`)}>
                           📢 OPEN ROOM
                         </Button>

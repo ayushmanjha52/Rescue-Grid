@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Report emergencies, coordinate volunteers and manage disaster response in real time.",
     start_url: "/",
     display: "standalone",
-    background_color: "#FFFFFF",
-    theme_color: "#C44A12",
+    background_color: "#0B0B0D",
+    theme_color: "#0B0B0D",
     orientation: "portrait",
     icons: [
       { src: "/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },

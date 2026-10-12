@@ -6,15 +6,7 @@ import { HELPLINE_NUMBER, STORAGE_KEYS } from "@/lib/config";
 import { useStoredValue } from "@/hooks/useStoredValue";
 import { extractReportId, parseReportIds } from "@/lib/myReports";
 import { forgetReport } from "@/lib/myReportsStorage";
-
-const SITUATION_COLORS: Record<string, string> = {
-  food: "#1E8449",
-  water: "#1F5FCC",
-  medical: "#B45309",
-  rescue: "#D32F2F",
-  shelter: "#7E22CE",
-  missing: "#4B5563",
-};
+import { situationColor } from "@/lib/status";
 
 type Report = {
   id: string;
@@ -131,7 +123,7 @@ export default function MyReportsPage() {
         {reports.length > 0 && (
           <div className="space-y-3">
             {reports.map((report) => {
-              const borderColor = SITUATION_COLORS[report.situation] || "#C44A12";
+              const borderColor = situationColor(report.situation);
 
               return (
                 <div key={report.id}>
@@ -234,7 +226,7 @@ export default function MyReportsPage() {
             <button
               type="submit"
               disabled={!linkInput.trim()}
-              className="font-display font-semibold text-[11px] uppercase tracking-[0.1em] text-white bg-orange px-4 py-2 disabled:opacity-50"
+              className="font-display font-semibold text-[11px] uppercase tracking-[0.1em] text-on-accent bg-orange px-4 py-2 disabled:opacity-50"
             >
               Open
             </button>
@@ -246,7 +238,7 @@ export default function MyReportsPage() {
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-void border-t border-border-dim">
         <button
           onClick={() => router.push("/")}
-          className="w-full text-center font-display font-semibold text-[13px] uppercase tracking-[0.15em] text-white bg-orange py-3 transition-opacity hover:opacity-90"
+          className="w-full text-center font-display font-semibold text-[13px] uppercase tracking-[0.15em] text-on-accent bg-orange py-3 transition-opacity hover:opacity-90"
           style={{
             clipPath: "polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px))",
           }}

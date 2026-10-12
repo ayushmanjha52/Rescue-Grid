@@ -84,11 +84,11 @@ function urgencyColor(urgency?: string) {
 
 function situationColor(situation?: string) {
   switch (situation?.toLowerCase()) {
-    case "rescue": return "text-red-600";
-    case "food": return "text-green-700";
-    case "water": return "text-blue-600";
-    case "medical": return "text-amber-700";
-    case "shelter": return "text-purple-500";
+    case "rescue": return "text-alert";
+    case "food": return "text-ops";
+    case "water": return "text-intel";
+    case "medical": return "text-caution";
+    case "shelter": return "text-purple";
     default: return "text-dim";
   }
 }
@@ -396,16 +396,16 @@ function MessagesContent() {
   let lastDay = "";
 
   return (
-    <div className="w-screen bg-gray-50 overflow-hidden" style={{ height: "100dvh", display: "flex", flexDirection: "column" }}>
+    <div className="w-screen bg-surface-2 overflow-hidden" style={{ height: "100dvh", display: "flex", flexDirection: "column" }}>
       <div className="flex flex-1 min-h-0" style={{ paddingTop: "52px" }}>
         {/* Channel list: full width on phones (hidden while a conversation is open), a side column from md up. */}
         <div
-          className={`w-full md:w-[300px] bg-white border-r border-gray-100 flex-col shrink-0 overflow-hidden ${
+          className={`w-full md:w-[300px] bg-surface-1 border-r border-border-dim flex-col shrink-0 overflow-hidden ${
             activeChannel ? "hidden md:flex" : "flex"
           }`}
         >
-          <div className="p-3 border-b border-gray-100 space-y-3">
-            <h2 className="font-inter text-[14px] font-bold uppercase tracking-wide text-gray-900">Communication Hub</h2>
+          <div className="p-3 border-b border-border-dim space-y-3">
+            <h2 className="font-inter text-[14px] font-bold uppercase tracking-wide text-ink">Communication Hub</h2>
 
             <div className="flex gap-1" role="tablist">
               {([
@@ -434,14 +434,14 @@ function MessagesContent() {
               onChange={(e) => setChannelSearch(e.target.value)}
               placeholder="Search name, place or phone..."
               aria-label="Search channels"
-              className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-sm font-inter text-[12px] focus:outline-none focus:border-orange"
+              className="w-full px-3 py-1.5 bg-surface-2 border border-border-dim rounded-sm font-inter text-[12px] focus:outline-none focus:border-orange"
             />
           </div>
 
           <div className="flex-1 overflow-y-auto min-h-0">
             {loading ? (
               <div className="p-4 space-y-2">
-                {[1, 2, 3, 4].map((i) => <div key={i} className="h-14 bg-gray-50 animate-pulse" />)}
+                {[1, 2, 3, 4].map((i) => <div key={i} className="h-14 bg-surface-2 animate-pulse" />)}
               </div>
             ) : filteredChannels.length === 0 ? (
               <p className="p-4 text-center font-inter text-dim text-[10px] uppercase tracking-wider">No channels</p>
@@ -469,7 +469,7 @@ function MessagesContent() {
                         <div className="flex items-center gap-1 shrink-0">
                           {channel.is_flagged && <span className="text-alert text-[10px] animate-pulse" title="Flagged">⚑</span>}
                           {channel.unread_count > 0 && (
-                            <span className="min-w-5 h-5 px-1 bg-orange rounded-full flex items-center justify-center font-ibm-mono text-[9px] text-white font-bold">
+                            <span className="min-w-5 h-5 px-1 bg-orange rounded-full flex items-center justify-center font-ibm-mono text-[9px] text-on-accent font-bold">
                               {channel.unread_count}
                             </span>
                           )}
@@ -619,7 +619,7 @@ function MessagesContent() {
                                 {isDma ? "🟧 DMA Command" : msg.sender_name || "Unknown"}
                               </span>
                               <div
-                                className={`px-4 py-3 ${isDma ? "bg-orange text-white" : "bg-surface-3 text-ink border border-border-dim"} ${msg._temp ? "opacity-60" : ""}`}
+                                className={`px-4 py-3 ${isDma ? "bg-orange text-on-accent" : "bg-surface-3 text-ink border border-border-dim"} ${msg._temp ? "opacity-60" : ""}`}
                                 style={{
                                   clipPath: isDma
                                     ? "polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%)"
@@ -648,7 +648,7 @@ function MessagesContent() {
                     scrollToBottom("smooth");
                     setNewMessagesCount(0);
                   }}
-                  className="absolute bottom-28 left-1/2 -translate-x-1/2 bg-orange text-white px-5 py-2.5 rounded-full font-inter text-[11px] font-bold shadow-lg z-10"
+                  className="absolute bottom-28 left-1/2 -translate-x-1/2 bg-orange text-on-accent px-5 py-2.5 rounded-full font-inter text-[11px] font-bold shadow-lg z-10"
                 >
                   ↓ {newMessagesCount} new message{newMessagesCount > 1 ? "s" : ""}
                 </button>
@@ -675,7 +675,7 @@ function MessagesContent() {
                     type="submit"
                     disabled={!newMessage.trim() || sending}
                     className={`shrink-0 px-4 sm:px-8 py-4 font-inter font-bold text-[12px] uppercase tracking-[0.1em] transition-all clip-path-tactical ${
-                      newMessage.trim() && !sending ? "bg-orange text-white hover:bg-orange/90" : "bg-surface-3 text-dim cursor-not-allowed"
+                      newMessage.trim() && !sending ? "bg-orange text-on-accent hover:bg-orange/90" : "bg-surface-3 text-dim cursor-not-allowed"
                     }`}
                   >
                     {sending ? "Sending" : "Send"}

@@ -49,9 +49,9 @@ interface TaskForceDetails {
 
 function statusColor(status: string) {
   switch (normalizeAssignmentStatus(status)) {
-    case 'active': return 'bg-intel text-white';
-    case 'en_route': return 'bg-orange text-white';
-    case 'arrived': return 'bg-ops text-white';
+    case 'active': return 'bg-intel text-on-accent';
+    case 'en_route': return 'bg-orange text-on-accent';
+    case 'arrived': return 'bg-ops text-on-accent';
     default: return 'bg-surface-3 text-muted';
   }
 }

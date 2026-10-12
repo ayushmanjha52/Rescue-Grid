@@ -104,20 +104,20 @@ export default function MissionsPage() {
       <div className="flex items-center justify-center h-64">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-orange border-t-transparent rounded-full animate-spin" />
-          <span className="font-mono text-gray-500 text-xs">LOADING MISSIONS...</span>
+          <span className="font-mono text-dim text-xs">LOADING MISSIONS...</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="sticky top-0 z-10 bg-white border-b border-gray-100">
+    <div className="min-h-screen bg-void">
+      <div className="sticky top-0 z-10 bg-surface-1 border-b border-border-dim">
         <div className="flex items-center justify-between p-4 pb-0">
-          <h1 className="font-display text-xl font-bold text-gray-900 uppercase tracking-wide">
+          <h1 className="font-display text-xl font-bold text-ink uppercase tracking-wide">
             My Missions
           </h1>
-          <span className="font-mono text-[10px] text-gray-500">DISPATCH</span>
+          <span className="font-mono text-[10px] text-dim">DISPATCH</span>
         </div>
 
         <div className="flex p-4 gap-2" role="tablist">
@@ -128,7 +128,7 @@ export default function MissionsPage() {
               aria-selected={activeTab === tab}
               onClick={() => setActiveTab(tab)}
               className={`flex-1 py-3 px-4 font-mono text-[11px] uppercase tracking-wider font-semibold transition-all rounded-sm ${
-                activeTab === tab ? 'bg-orange text-white' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                activeTab === tab ? 'bg-orange text-on-accent' : 'bg-surface-2 text-dim hover:bg-surface-3'
               }`}
             >
               {tab === 'queue' ? `Queue (${queueAssignments.length})` : `History (${historyAssignments.length})`}
@@ -144,16 +144,16 @@ export default function MissionsPage() {
 
         {assignments.length === 0 ? (
           <div className="text-center py-16">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-gray-500">
+            <div className="w-16 h-16 bg-surface-3 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-dim">
                 <path d="M9 11l3 3L22 4"/>
                 <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
               </svg>
             </div>
-            <p className="font-display text-lg text-gray-900 mb-1">
+            <p className="font-display text-lg text-ink mb-1">
               {activeTab === 'queue' ? 'No pending missions' : 'No completed missions'}
             </p>
-            <p className="font-mono text-[11px] text-gray-500">
+            <p className="font-mono text-[11px] text-dim">
               {activeTab === 'queue' ? 'New assignments will appear here' : 'Your completed missions will be logged here'}
             </p>
           </div>
@@ -167,7 +167,7 @@ export default function MissionsPage() {
               return (
                 <div
                   key={assignment.id}
-                  className={`bg-white overflow-hidden transition-all border border-gray-100 rounded-sm shadow-sm border-l-4 ${borderClass(assignment.status)}`}
+                  className={`bg-surface-1 overflow-hidden transition-all border border-border-dim rounded-sm shadow-sm border-l-4 ${borderClass(assignment.status)}`}
                 >
                   <button
                     type="button"
@@ -189,16 +189,16 @@ export default function MissionsPage() {
                           </span>
                         )}
                       </div>
-                      <span className="font-mono text-[10px] text-gray-500 shrink-0">
+                      <span className="font-mono text-[10px] text-dim shrink-0">
                         {formatRelative(activeTab === 'history' ? assignment.updated_at : assignment.created_at, now)}
                       </span>
                     </div>
 
-                    <h3 className="font-display text-base font-semibold text-gray-900 leading-snug mb-2">
+                    <h3 className="font-display text-base font-semibold text-ink leading-snug mb-2">
                       {assignment.task}
                     </h3>
 
-                    <div className="flex items-center gap-4 text-[11px] text-gray-500">
+                    <div className="flex items-center gap-4 text-[11px] text-dim">
                       {assignment.location_label && (
                         <span className="flex items-center gap-1">
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -220,7 +220,7 @@ export default function MissionsPage() {
                     </div>
 
                     <div className="mt-3 flex items-center justify-between">
-                      <span className="font-mono text-[10px] text-gray-500">
+                      <span className="font-mono text-[10px] text-dim">
                         {isExpanded ? 'Tap to collapse' : 'Tap for details'}
                       </span>
                       <svg
@@ -230,7 +230,7 @@ export default function MissionsPage() {
                         fill="none"
                         stroke="currentColor"
                         strokeWidth="2"
-                        className={`text-gray-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                        className={`text-dim transition-transform ${isExpanded ? 'rotate-180' : ''}`}
                       >
                         <polyline points="6,9 12,15 18,9"/>
                       </svg>
@@ -238,17 +238,17 @@ export default function MissionsPage() {
                   </button>
 
                   {isExpanded && (
-                    <div className="border-t border-gray-100 bg-gray-50">
+                    <div className="border-t border-border-dim bg-surface-2">
                       <div className="p-4 space-y-4">
                         <div>
-                          <p className="font-mono text-[9px] text-gray-500 uppercase tracking-wider mb-1">Mission Details</p>
-                          <p className="text-gray-900 font-body text-[13px] leading-relaxed whitespace-pre-wrap">{assignment.task}</p>
+                          <p className="font-mono text-[9px] text-dim uppercase tracking-wider mb-1">Mission Details</p>
+                          <p className="text-ink font-body text-[13px] leading-relaxed whitespace-pre-wrap">{assignment.task}</p>
                         </div>
 
                         {assignment.location_label && (
                           <div>
-                            <p className="font-mono text-[9px] text-gray-500 uppercase tracking-wider mb-1">Location</p>
-                            <p className="text-gray-900 font-body text-[13px]">{assignment.location_label}</p>
+                            <p className="font-mono text-[9px] text-dim uppercase tracking-wider mb-1">Location</p>
+                            <p className="text-ink font-body text-[13px]">{assignment.location_label}</p>
                             {assignment.latitude != null && assignment.longitude != null && (
                               <a
                                 href={`https://www.google.com/maps/dir/?api=1&destination=${assignment.latitude},${assignment.longitude}`}
@@ -295,7 +295,7 @@ export default function MissionsPage() {
                         )}
 
                         {activeTab === 'history' && (
-                          <p className="font-mono text-[10px] text-gray-500">
+                          <p className="font-mono text-[10px] text-dim">
                             {status === 'completed' ? 'Completed' : 'Failed'} on{' '}
                             {new Date(assignment.updated_at || assignment.created_at).toLocaleString('en-IN')}
                           </p>

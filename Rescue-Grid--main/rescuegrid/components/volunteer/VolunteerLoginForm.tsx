@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import InputField from '@/components/ui/InputField';
 import Button from '@/components/ui/Button';
 import Turnstile from '@/components/ui/Turnstile';
+import Wordmark from '@/components/ui/Wordmark';
 import { TURNSTILE_SITE_KEY } from '@/lib/config';
 
 export type Mode = 'join' | 'signin';
@@ -69,14 +70,13 @@ export default function VolunteerLoginForm({ initialMode }: { initialMode: Mode 
   };
 
   return (
-    <main className="min-h-screen bg-void flex flex-col items-center justify-center px-4 py-8">
+    <main className="min-h-screen ember-glow flex flex-col items-center justify-center px-4 py-8">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <h1 className="font-display text-4xl font-bold tracking-[0.08em] mb-1">
-            <span className="text-ink">RESCUE</span>
-            <span className="text-orange">GRID</span>
+          <h1 className="mb-1">
+            <Wordmark size="xl" />
           </h1>
-          <p className="font-body text-muted text-sm mt-2">Volunteer Portal</p>
+          <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-dim mt-4">Volunteer Portal</p>
         </div>
 
         <div className="grid grid-cols-2 mb-4 border border-border-dim" role="tablist">
@@ -88,7 +88,7 @@ export default function VolunteerLoginForm({ initialMode }: { initialMode: Mode 
               aria-selected={mode === m}
               onClick={() => switchMode(m)}
               className={`py-2.5 font-display text-[13px] font-semibold uppercase tracking-wider ${
-                mode === m ? 'bg-orange text-white' : 'bg-surface-1 text-muted hover:text-ink'
+                mode === m ? 'bg-orange text-on-accent' : 'bg-surface-1 text-muted hover:text-ink'
               }`}
             >
               {m === 'join' ? 'Join as volunteer' : 'Sign in'}

@@ -229,7 +229,7 @@ export default function VolunteerInboxPage() {
           </div>
           {unreadCount > 0 && (
             <div className="w-8 h-8 bg-alert rounded-full flex items-center justify-center" aria-label={`${unreadCount} unread`}>
-              <span className="font-mono text-[11px] font-bold text-white">{unreadCount}</span>
+              <span className="font-mono text-[11px] font-bold text-on-accent">{unreadCount}</span>
             </div>
           )}
         </div>
@@ -240,7 +240,7 @@ export default function VolunteerInboxPage() {
             aria-selected={activeTab === 'inbox'}
             onClick={() => setActiveTab('inbox')}
             className={`flex-1 py-3 px-4 font-mono text-[11px] uppercase tracking-wider font-semibold transition-all clip-path-tactical ${
-              activeTab === 'inbox' ? 'bg-orange text-white' : 'bg-surface-2 text-dim hover:bg-surface-3'
+              activeTab === 'inbox' ? 'bg-orange text-on-accent' : 'bg-surface-2 text-dim hover:bg-surface-3'
             }`}
           >
             💬 DMA Command {unreadCount > 0 && `(${unreadCount})`}
@@ -250,7 +250,7 @@ export default function VolunteerInboxPage() {
             aria-selected={activeTab === 'taskforces'}
             onClick={() => setActiveTab('taskforces')}
             className={`flex-1 py-3 px-4 font-mono text-[11px] uppercase tracking-wider font-semibold transition-all clip-path-tactical ${
-              activeTab === 'taskforces' ? 'bg-ops text-white' : 'bg-surface-2 text-dim hover:bg-surface-3'
+              activeTab === 'taskforces' ? 'bg-ops text-on-accent' : 'bg-surface-2 text-dim hover:bg-surface-3'
             }`}
           >
             👥 Task Forces ({taskForces.length})
@@ -334,7 +334,7 @@ export default function VolunteerInboxPage() {
               <button
                 type="submit"
                 disabled={sending || !newMessage.trim()}
-                className="px-4 h-12 font-display font-semibold text-[12px] uppercase tracking-wider bg-orange text-white disabled:opacity-50 clip-path-tactical-sm"
+                className="px-4 h-12 font-display font-semibold text-[12px] uppercase tracking-wider bg-orange text-on-accent disabled:opacity-50 clip-path-tactical-sm"
               >
                 {sending ? '...' : 'Send'}
               </button>

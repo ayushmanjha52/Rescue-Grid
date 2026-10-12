@@ -81,7 +81,7 @@ export default function VolunteerMapPage() {
     mapboxgl.accessToken = MAPBOX_TOKEN;
     const map = new mapboxgl.Map({
       container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
+      style: 'mapbox://styles/mapbox/dark-v11',
       center: [DEFAULT_MAP_CENTER.lng, DEFAULT_MAP_CENTER.lat],
       zoom: 12,
     });
@@ -97,7 +97,7 @@ export default function VolunteerMapPage() {
         type: 'line',
         source: 'route',
         layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-color': '#FF6B2B', 'line-width': 5, 'line-opacity': 0.85 },
+        paint: { 'line-color': '#FF7A3D', 'line-width': 5, 'line-opacity': 0.85 },
       });
       setMapLoaded(true);
     });
@@ -137,7 +137,7 @@ export default function VolunteerMapPage() {
       volunteerMarker.current.setLngLat([volLng, volLat]);
     } else {
       const el = document.createElement('div');
-      el.style.cssText = 'width:20px;height:20px;background:#3B8BFF;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3)';
+      el.style.cssText = 'width:20px;height:20px;background:#7CB2FF;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3)';
       volunteerMarker.current = new mapboxgl.Marker({ element: el }).setLngLat([volLng, volLat]).addTo(map);
       if (!assignment) map.flyTo({ center: [volLng, volLat], zoom: 14 });
     }
@@ -152,7 +152,7 @@ export default function VolunteerMapPage() {
       destMarker.current.setLngLat([assignment.longitude, assignment.latitude]);
     } else {
       const el = document.createElement('div');
-      el.style.cssText = 'width:30px;height:30px;background:#FF6B2B;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3)';
+      el.style.cssText = 'width:30px;height:30px;background:#FF7A3D;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3)';
       destMarker.current = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
         .setLngLat([assignment.longitude, assignment.latitude])
         .addTo(map);
@@ -201,7 +201,7 @@ export default function VolunteerMapPage() {
       <div ref={mapContainer} className="w-full h-full bg-surface-2" />
 
       {error && (
-        <div className="absolute top-4 left-4 right-14 bg-white/95 p-3 shadow clip-path-tactical-sm" role="alert">
+        <div className="absolute top-4 left-4 right-14 bg-void/85 p-3 shadow clip-path-tactical-sm" role="alert">
           <p className="font-mono text-[11px] text-alert">{error}</p>
           {(permission === 'denied' || gpsError) && (
             <button onClick={requestPermission} className="font-mono text-[10px] text-orange underline mt-1">
@@ -212,7 +212,7 @@ export default function VolunteerMapPage() {
       )}
 
       {assignment && (
-        <div className="absolute bottom-0 left-0 right-0 bg-surface-1 border-t border-border p-3 shadow-[0_-4px_12px_rgba(0,0,0,0.08)]">
+        <div className="absolute bottom-0 left-0 right-0 bg-surface-1 border-t border-border p-3 shadow-[0_-8px_20px_rgba(0,0,0,0.4)]">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="font-display text-sm font-semibold text-ink uppercase truncate">
@@ -234,7 +234,7 @@ export default function VolunteerMapPage() {
       )}
 
       {assignmentLoaded && !assignment && !error && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/95 px-4 py-2 shadow text-center">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-void/85 px-4 py-2 shadow text-center">
           <p className="font-mono text-dim text-[11px]">NO ACTIVE MISSION</p>
           <p className="font-mono text-[10px] text-dim mt-0.5">Accept a mission to see the route</p>
         </div>

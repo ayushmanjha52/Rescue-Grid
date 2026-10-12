@@ -10,7 +10,7 @@ import { HELPLINE_NUMBER } from "@/lib/config";
 import HelplineLink from "@/components/victim/HelplineLink";
 import { REPORT_UPDATED_EVENT, reportTopic } from "@/lib/realtimeTopics";
 import { rememberReport } from "@/lib/myReportsStorage";
-import { reportReference } from "@/lib/status";
+import { reportReference, situationColor } from "@/lib/status";
 
 type Report = {
   id: string;
@@ -30,15 +30,6 @@ type Message = {
   victim_report_id: string;
   created_at: string;
   read_at: string | null;
-};
-
-const SITUATION_COLORS: Record<string, string> = {
-  food: "#1E8449",
-  water: "#1F5FCC",
-  medical: "#B45309",
-  rescue: "#D32F2F",
-  shelter: "#7E22CE",
-  missing: "#4B5563",
 };
 
 const MAX_MESSAGES = 200;
@@ -210,7 +201,7 @@ export default function ReportStatusPage() {
     );
   }
 
-  const borderColor = SITUATION_COLORS[report.situation] || "#C44A12";
+  const borderColor = situationColor(report.situation);
 
   const header = (
     <div
@@ -291,7 +282,7 @@ export default function ReportStatusPage() {
         <button
           type="submit"
           disabled={!newMessage.trim() || sending}
-          className="font-display font-semibold text-[11px] uppercase tracking-[0.1em] text-white bg-orange px-4 py-2 transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="font-display font-semibold text-[11px] uppercase tracking-[0.1em] text-on-accent bg-orange px-4 py-2 transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ clipPath: "polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%)" }}
         >
           {sending ? "..." : "SEND →"}
@@ -304,7 +295,7 @@ export default function ReportStatusPage() {
   const footerArea = (
     <div className="px-4 py-3 border-t border-border-dim bg-surface-1" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
       <HelplineLink
-        className="block w-full text-center font-[family-name:var(--font-ibm-mono)] font-medium text-[13px] uppercase tracking-[0.15em] text-white bg-orange py-3 transition-opacity hover:opacity-90"
+        className="block w-full text-center font-ibm-mono font-medium text-[13px] uppercase tracking-[0.15em] text-on-accent bg-orange py-3 transition-opacity hover:opacity-90"
         style={{
           clipPath: "polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px))",
         }}

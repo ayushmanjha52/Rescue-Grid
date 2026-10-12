@@ -41,10 +41,10 @@ interface VolunteerRow {
 }
 
 const TYPE_COLORS = {
-  broadcast: '#C44A12',
-  mission: '#1E8449',
-  intel: '#1F5FCC',
-  caution: '#B45309',
+  broadcast: '#FF7A3D',
+  mission: '#4ADE94',
+  intel: '#7CB2FF',
+  caution: '#F7B955',
 };
 
 const MAX_ALERTS = 5;

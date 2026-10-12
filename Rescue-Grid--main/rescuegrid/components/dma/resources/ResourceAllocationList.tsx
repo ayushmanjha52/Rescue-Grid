@@ -69,7 +69,7 @@ export default function ResourceAllocationList({ filterResourceId }: ResourceAll
             aria-selected={statusFilter === s}
             onClick={() => setStatusFilter(s)}
             className={`px-3 py-1 text-[10px] font-mono uppercase tracking-wider border transition-colors ${
-              statusFilter === s ? "bg-orange text-white border-orange" : "bg-transparent text-muted border-border-dim hover:border-orange"
+              statusFilter === s ? "bg-orange text-on-accent border-orange" : "bg-transparent text-muted border-border-dim hover:border-orange"
             }`}
           >
             {s ? s.replace("_", " ") : "ALL"}

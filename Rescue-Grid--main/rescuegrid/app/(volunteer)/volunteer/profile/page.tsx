@@ -37,7 +37,7 @@ function ReadyChecklist({ steps }: { steps: ChecklistStep[] }) {
           <li key={step.key} className="flex items-start gap-3">
             <span
               className={`w-5 h-5 shrink-0 flex items-center justify-center font-mono text-[10px] ${
-                step.done ? 'bg-ops text-white' : 'bg-surface-3 text-dim'
+                step.done ? 'bg-ops text-on-accent' : 'bg-surface-3 text-dim'
               }`}
               aria-hidden="true"
             >
@@ -51,7 +51,7 @@ function ReadyChecklist({ steps }: { steps: ChecklistStep[] }) {
               <button
                 type="button"
                 onClick={step.action.onClick}
-                className="shrink-0 px-2 py-1 bg-orange text-white font-mono text-[10px] uppercase tracking-wider"
+                className="shrink-0 px-2 py-1 bg-orange text-on-accent font-mono text-[10px] uppercase tracking-wider"
               >
                 {step.action.label}
               </button>
@@ -72,9 +72,9 @@ interface ResourceAllocation {
 }
 
 const STATUS_DISPLAY: Record<string, { label: string; className: string; icon: string }> = {
-  active: { label: 'AVAILABLE', className: 'bg-orange text-white', icon: '🟢' },
-  'on-mission': { label: 'ON MISSION', className: 'bg-ops text-white', icon: '🚑' },
-  standby: { label: 'STANDBY', className: 'bg-caution text-white', icon: '🟡' },
+  active: { label: 'AVAILABLE', className: 'bg-orange text-on-accent', icon: '🟢' },
+  'on-mission': { label: 'ON MISSION', className: 'bg-ops text-on-accent', icon: '🚑' },
+  standby: { label: 'STANDBY', className: 'bg-caution text-on-accent', icon: '🟡' },
   offline: { label: 'OFFLINE', className: 'bg-surface-3 text-dim', icon: '⚫' },
 };
 
@@ -378,7 +378,7 @@ function ProfileContent() {
                           aria-pressed={selectedSkillIds.includes(skill.id)}
                           onClick={() => toggleSkill(skill.id)}
                           className={`px-2 py-1 font-mono text-[10px] uppercase transition-colors ${
-                            selectedSkillIds.includes(skill.id) ? 'bg-orange text-white' : 'bg-surface-3 text-dim hover:text-ink'
+                            selectedSkillIds.includes(skill.id) ? 'bg-orange text-on-accent' : 'bg-surface-3 text-dim hover:text-ink'
                           }`}
                         >
                           {skill.name}
@@ -403,7 +403,7 @@ function ProfileContent() {
                       aria-pressed={editEquipment.includes(option.label)}
                       onClick={() => toggleEquipment(option.label)}
                       className={`px-2 py-1 font-mono text-[10px] uppercase transition-colors ${
-                        editEquipment.includes(option.label) ? 'bg-intel text-white' : 'bg-surface-3 text-dim hover:text-ink'
+                        editEquipment.includes(option.label) ? 'bg-intel text-on-accent' : 'bg-surface-3 text-dim hover:text-ink'
                       }`}
                     >
                       {option.label}

@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
+import Wordmark from "@/components/ui/Wordmark";
 import { AIAssistantButton } from "./AIAssistantButton";
 import { useCounters } from "./CountersProvider";
 import { useNow } from "@/hooks/useNow";
@@ -65,7 +66,7 @@ export default function Topbar({ loginTime, aiAssistantOpen, onToggleAI }: Topba
     <span className="flex items-center gap-1.5 font-inter text-[11px] uppercase tracking-[0.1em] text-dim whitespace-nowrap">
       {label}
       {loading ? (
-        <span className="inline-block w-4 h-4 bg-gray-100 animate-pulse rounded-sm" />
+        <span className="inline-block w-4 h-4 bg-surface-3 animate-pulse rounded-sm" />
       ) : (
         <strong className={`text-[16px] ${valueClass} ${pulse ? "animate-critical-pulse" : ""}`}>{value}</strong>
       )}
@@ -73,10 +74,9 @@ export default function Topbar({ loginTime, aiAssistantOpen, onToggleAI }: Topba
   );
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 flex items-center h-[52px] px-4 bg-white border-b border-border-dim gap-3">
+    <header className="fixed top-0 left-0 right-0 z-50 flex items-center h-[52px] px-4 bg-surface-1 border-b border-border-dim gap-3">
       <Link href="/dma/dashboard" className="flex items-center gap-2 shrink-0" aria-label="RescueGrid command dashboard">
-        <span className="font-inter text-[18px] font-bold tracking-[0.08em] text-ink uppercase">RESCUE</span>
-        <span className="font-inter text-[18px] font-bold tracking-[0.08em] text-orange uppercase">GRID</span>
+        <Wordmark size="sm" />
       </Link>
 
       <nav className="hidden xl:flex items-center gap-0.5 min-w-0" aria-label="Command sections">
@@ -130,7 +130,7 @@ export default function Topbar({ loginTime, aiAssistantOpen, onToggleAI }: Topba
       {menuOpen && (
         <div
           id="dma-menu"
-          className="absolute top-[52px] right-0 left-0 sm:left-auto sm:w-80 bg-white border border-border-dim shadow-lg max-h-[calc(100vh-52px)] overflow-y-auto"
+          className="absolute top-[52px] right-0 left-0 sm:left-auto sm:w-80 bg-surface-1 border border-border-dim shadow-lg max-h-[calc(100vh-52px)] overflow-y-auto"
         >
           <nav className="flex flex-col py-2 xl:hidden border-b border-border-dim" aria-label="Command sections">
             {NAV_TABS.map((tab) => (
@@ -151,7 +151,7 @@ export default function Topbar({ loginTime, aiAssistantOpen, onToggleAI }: Topba
             {counter("Active", counters.active, "text-orange")}
             {counter("Vols", counters.vols, "text-ink")}
             <span className="font-inter text-[11px] uppercase tracking-[0.1em] text-dim whitespace-nowrap">
-              Session <strong className="font-ibm-mono text-green-700">{sessionElapsed}</strong>
+              Session <strong className="font-ibm-mono text-ops">{sessionElapsed}</strong>
             </span>
           </div>
           <div className="p-4 grid grid-cols-2 gap-2">

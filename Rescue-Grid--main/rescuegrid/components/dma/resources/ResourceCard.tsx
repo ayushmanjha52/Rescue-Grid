@@ -99,7 +99,7 @@ export default function ResourceCard({ resource, onAllocate, onViewAllocations, 
   };
 
   return (
-    <div className="bg-white border border-gray-100 p-4 clip-path-tactical relative">
+    <div className="bg-surface-1 border border-border-dim p-4 clip-path-tactical relative">
       <div className="flex justify-between items-start mb-3">
         <div>
           <h3 className="font-inter font-semibold text-ink text-base uppercase tracking-wide">{resource.name}</h3>
@@ -167,7 +167,7 @@ export default function ResourceCard({ resource, onAllocate, onViewAllocations, 
             <button
               onClick={handleDelete}
               disabled={saving}
-              className="px-2 py-1 text-[10px] font-ibm-mono text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors uppercase tracking-wider"
+              className="px-2 py-1 text-[10px] font-ibm-mono text-alert hover:text-alert hover:bg-alert/10 transition-colors uppercase tracking-wider"
             >
               DELETE
             </button>

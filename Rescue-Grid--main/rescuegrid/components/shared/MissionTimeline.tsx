@@ -146,7 +146,7 @@ export default function MissionTimeline({
               type="button"
               onClick={() => void sendReply()}
               disabled={sending || !reply.trim()}
-              className="px-3 py-2 bg-orange text-white font-mono text-[10px] uppercase tracking-wider disabled:opacity-50"
+              className="px-3 py-2 bg-orange text-on-accent font-mono text-[10px] uppercase tracking-wider disabled:opacity-50"
             >
               {sending ? 'Sending…' : 'Send'}
             </button>

@@ -3,16 +3,25 @@
 Resilient Orchestration Platform for Disaster Response.
 Asynchronous synchronization of Victims, Volunteers, and DMA in low connectivity, high-latency environments.
 
-Live Link : https://rescuegrid-india.vercel.app/ (Victim PWA — report an emergency, SOS)
-Live Link : https://rescuegrid-india.vercel.app/dma/login (DMA Dashboard, secured by auth; operator accounts are created by the owner)
-Live Link : https://rescuegrid-india.vercel.app/volunteer/login (volunteers join and sign in with a phone number + PIN, no SMS needed)
+## Live demo
+
+**[rescuegrid-india.vercel.app](https://rescuegrid-india.vercel.app/)**
+
+| App | Link | Notes |
+| --- | --- | --- |
+| Victim PWA | [rescuegrid-india.vercel.app](https://rescuegrid-india.vercel.app/) | Report an emergency or send an SOS. No account needed. |
+| Volunteer PWA | [/volunteer/login](https://rescuegrid-india.vercel.app/volunteer/login) | Join and sign in with a phone number + PIN (no SMS). |
+| DMA dashboard | [/dma/login](https://rescuegrid-india.vercel.app/dma/login) | Operator accounts are created by the owner. |
+| Status | [/api/health](https://rescuegrid-india.vercel.app/api/health) | Shows whether the app and database are up. |
+
+Source code: [github.com/ayushmanjha52/Rescue-Grid](https://github.com/ayushmanjha52/Rescue-Grid)
 
 
 # BANNER
 
 <p align="center">
   <img 
-    src="./rescuegrid/README/RESCUEGRID%20BANNER.jpeg" 
+    src="./Rescue-Grid--main/rescuegrid/README/RESCUEGRID%20BANNER.jpeg" 
     alt="RescueGrid Hero Banner" 
     width="100%" 
     style="border-radius: 16px; box-shadow: 0 10px 30px rgba(255, 98, 0, 0.3);">
@@ -54,7 +63,7 @@ Low-Literacy & Accessibility Focused
 
 <p align="center">
   <img 
-    src="./rescuegrid/README/RESCUEGRID%20ARCHITECTURE.jpeg" 
+    src="./Rescue-Grid--main/rescuegrid/README/RESCUEGRID%20ARCHITECTURE.jpeg" 
     alt="RescueGrid Architecture" 
     width="100%" 
     style="border-radius: 16px; box-shadow: 0 10px 30px rgba(255, 98, 0, 0.3);">
@@ -66,7 +75,7 @@ Low-Literacy & Accessibility Focused
 
  Dashboard:
 Next.js 16 (App Router) + React 19
-Tailwind CSS + SIGNAL ORANGE theme
+Tailwind CSS 4, dark "night ops" theme (Bricolage Grotesque, Instrument Sans/Serif, IBM Plex Mono)
 Backend & Database:
 Supabase (PostgreSQL + Realtime + Auth + MCP)
 Supabase Realtime (Single Data Layer)
@@ -78,11 +87,12 @@ Tool Calling + Supabase MCP
 Communication:
 Web Push notifications for volunteers; phone number + PIN sign-in (no paid SMS)
 Deployment:
-Vercel (server in Tokyo, next to the Supabase database)
+Vercel (server in Tokyo, next to the Supabase database). Always on: no cold-start sleep.
+A health check runs a small database query several times a day (Vercel cron + GitHub Actions), so the free Supabase database is never paused for inactivity.
 Fallback Channels:
 SOS by SMS to 112 when there is no internet (optional Twilio number to receive SOS texts as reports)
 
-- [Installation & Setup](./rescuegrid/README.md#getting-started)
+- [Installation & Setup](./Rescue-Grid--main/rescuegrid/README.md#getting-started)
 
 
 # Ai-integration

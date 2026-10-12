@@ -104,7 +104,7 @@ export default function ReportForm({ type }: { type: Situation }) {
       markerRef.current.setLngLat([lngValue, latValue]);
       return;
     }
-    const marker = new mapbox.Marker({ color: "#C44A12", draggable: true }).setLngLat([lngValue, latValue]).addTo(map);
+    const marker = new mapbox.Marker({ color: "#FF7A3D", draggable: true }).setLngLat([lngValue, latValue]).addTo(map);
     marker.on("dragend", () => {
       const m = marker.getLngLat();
       void selectLocationRef.current?.(m.lng, m.lat, { fly: false });
@@ -173,7 +173,7 @@ export default function ReportForm({ type }: { type: Situation }) {
       const start = pickedRef.current;
       map = new mapbox.Map({
         container: mapContainerRef.current,
-        style: "mapbox://styles/mapbox/streets-v12",
+        style: "mapbox://styles/mapbox/dark-v11",
         center: start ? [start.lng, start.lat] : [DEFAULT_LOCATION.lng, DEFAULT_LOCATION.lat],
         zoom: start ? 14 : DEFAULT_LOCATION.zoom,
       });
@@ -337,25 +337,25 @@ export default function ReportForm({ type }: { type: Situation }) {
   const hasLocation = lat !== null && lng !== null;
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 bg-white">
+    <div className="min-h-screen bg-void flex flex-col">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-border-dim bg-surface-1">
         <button
           onClick={() => router.push("/")}
-          className="text-gray-500 hover:text-orange transition-colors"
+          className="text-dim hover:text-orange transition-colors"
           aria-label="Back to home"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
         </button>
-        <h1 className="font-display text-lg font-semibold text-gray-900 uppercase tracking-wide">
+        <h1 className="font-display text-lg font-semibold text-ink uppercase tracking-wide">
           {SITUATION_LABELS[type]}
         </h1>
       </div>
 
       {!isOnline && (
-        <div className="mx-4 mt-3 p-3 bg-orange-50 border border-orange-100 rounded-sm" role="status">
-          <p className="font-mono text-[11px] text-orange-700">
+        <div className="mx-4 mt-3 p-3 bg-orange/10 border border-orange/25 rounded-sm" role="status">
+          <p className="font-mono text-[11px] text-orange">
             📡 You are offline. Fill in the form and send it by SMS — no internet needed.
           </p>
         </div>
@@ -364,7 +364,7 @@ export default function ReportForm({ type }: { type: Situation }) {
       <div className="flex-1 px-4 pt-4 pb-32 space-y-4">
         {/* Location Search with Autocomplete */}
         <div ref={suggestionsRef} className="relative">
-          <label htmlFor="report-location" className="font-mono text-xs text-orange uppercase tracking-[0.2em] block mb-1.5">
+          <label htmlFor="report-location" className="font-mono text-xs text-muted uppercase tracking-[0.14em] block mb-1.5">
             Location *
           </label>
           <div className="relative">
@@ -385,11 +385,11 @@ export default function ReportForm({ type }: { type: Situation }) {
               }}
               placeholder="Type your village, area or landmark..."
               autoComplete="off"
-              className="w-full px-3 py-3 pr-10 bg-gray-50 border border-gray-200 rounded-sm font-body text-base text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-orange/20 focus:border-orange transition-colors"
+              className="w-full px-3 py-3 pr-10 bg-surface-2 border border-border-dim rounded-sm font-body text-base text-ink placeholder:text-dim focus:outline-none focus:ring-2 focus:ring-orange/20 focus:border-orange transition-colors"
             />
             {isSearching && (
               <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                <svg className="animate-spin w-4 h-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg className="animate-spin w-4 h-4 text-dim" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                 </svg>
               </div>
@@ -397,16 +397,16 @@ export default function ReportForm({ type }: { type: Situation }) {
           </div>
 
           {showSuggestions && suggestions.length > 0 && (
-            <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-sm shadow-lg max-h-[200px] overflow-y-auto">
+            <div className="absolute z-50 left-0 right-0 mt-1 bg-surface-1 border border-border-dim rounded-sm shadow-lg max-h-[200px] overflow-y-auto">
               {suggestions.map((place) => (
                 <button
                   key={place.id}
                   type="button"
                   onClick={() => handleSelectSuggestion(place)}
-                  className="w-full px-3 py-2 text-left hover:bg-gray-50 border-b border-gray-100 last:border-0"
+                  className="w-full px-3 py-2 text-left hover:bg-surface-2 border-b border-border-dim last:border-0"
                 >
-                  <p className="font-body text-sm text-gray-900">{place.place_name}</p>
-                  <p className="font-mono text-[10px] text-gray-500">
+                  <p className="font-body text-sm text-ink">{place.place_name}</p>
+                  <p className="font-mono text-[10px] text-dim">
                     {place.place_type?.[0] || "Location"}
                   </p>
                 </button>
@@ -414,7 +414,7 @@ export default function ReportForm({ type }: { type: Situation }) {
             </div>
           )}
 
-          <p className="font-mono text-[10px] text-gray-500 mt-1">
+          <p className="font-mono text-[10px] text-dim mt-1">
             {hasLocation
               ? `📍 ${placeName || "Location selected"}${accuracy ? ` (±${Math.round(accuracy)}m)` : ""}`
               : "Search your location, tap the map, or use GPS below"}
@@ -425,10 +425,10 @@ export default function ReportForm({ type }: { type: Situation }) {
         <div>
           <div
             ref={mapContainerRef}
-            className="w-full h-[180px] rounded overflow-hidden border border-gray-200 bg-gray-100"
+            className="w-full h-[180px] rounded overflow-hidden border border-border-dim bg-surface-3"
           />
           <div className="mt-2 flex items-center justify-between">
-            <p className="font-mono text-[10px] text-gray-500">
+            <p className="font-mono text-[10px] text-dim">
               {locating ? "Getting GPS location..." : "Tap the map or drag the pin to adjust"}
             </p>
             <button
@@ -445,12 +445,12 @@ export default function ReportForm({ type }: { type: Situation }) {
             </button>
           </div>
           {locationError && (
-            <p className="font-mono text-[10px] text-amber-700 mt-1" role="alert">{locationError}</p>
+            <p className="font-mono text-[10px] text-caution mt-1" role="alert">{locationError}</p>
           )}
         </div>
 
         <div>
-          <label htmlFor="report-people" className="font-mono text-xs text-orange uppercase tracking-[0.2em] block mb-1.5">
+          <label htmlFor="report-people" className="font-mono text-xs text-muted uppercase tracking-[0.14em] block mb-1.5">
             People Affected
           </label>
           <input
@@ -461,13 +461,13 @@ export default function ReportForm({ type }: { type: Situation }) {
             value={peopleCount}
             onChange={(e) => setPeopleCount(e.target.value)}
             placeholder="e.g., 5"
-            className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-sm font-body text-base text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-orange/20 focus:border-orange transition-colors"
+            className="w-full px-3 py-3 bg-surface-2 border border-border-dim rounded-sm font-body text-base text-ink placeholder:text-dim focus:outline-none focus:ring-2 focus:ring-orange/20 focus:border-orange transition-colors"
           />
-          <p className="font-mono text-[10px] text-gray-500 mt-1">How many people need {type}?</p>
+          <p className="font-mono text-[10px] text-dim mt-1">How many people need {type}?</p>
         </div>
 
         <div>
-          <label htmlFor="report-phone" className="font-mono text-xs text-orange uppercase tracking-[0.2em] block mb-1.5">
+          <label htmlFor="report-phone" className="font-mono text-xs text-muted uppercase tracking-[0.14em] block mb-1.5">
             Phone Number *
           </label>
           <input
@@ -478,13 +478,13 @@ export default function ReportForm({ type }: { type: Situation }) {
             value={phone}
             onChange={(e) => setPhoneInput(e.target.value)}
             placeholder="+91 XXXXXXXXXX"
-            className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-sm font-body text-base text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-orange/20 focus:border-orange transition-colors"
+            className="w-full px-3 py-3 bg-surface-2 border border-border-dim rounded-sm font-body text-base text-ink placeholder:text-dim focus:outline-none focus:ring-2 focus:ring-orange/20 focus:border-orange transition-colors"
           />
-          <p className="font-mono text-[10px] text-gray-500 mt-1">The rescue team will call this number</p>
+          <p className="font-mono text-[10px] text-dim mt-1">The rescue team will call this number</p>
         </div>
 
         <div>
-          <label htmlFor="report-details" className="font-mono text-xs text-orange uppercase tracking-[0.2em] block mb-1.5">
+          <label htmlFor="report-details" className="font-mono text-xs text-muted uppercase tracking-[0.14em] block mb-1.5">
             Additional Details (optional)
           </label>
           <div className="relative">
@@ -494,30 +494,30 @@ export default function ReportForm({ type }: { type: Situation }) {
               onChange={(e) => setMessage(e.target.value.slice(0, MAX_DETAILS))}
               placeholder={SITUATION_PLACEHOLDERS[type]}
               rows={3}
-              className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-sm font-body text-base text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-orange/20 focus:border-orange transition-colors resize-none"
+              className="w-full px-3 py-3 bg-surface-2 border border-border-dim rounded-sm font-body text-base text-ink placeholder:text-dim focus:outline-none focus:ring-2 focus:ring-orange/20 focus:border-orange transition-colors resize-none"
             />
-            <span className="absolute bottom-2 right-2 font-mono text-[10px] text-gray-500">
+            <span className="absolute bottom-2 right-2 font-mono text-[10px] text-dim">
               {message.length}/{MAX_DETAILS}
             </span>
           </div>
         </div>
 
         {submitError && (
-          <p className="text-red-600 font-mono text-xs" role="alert">{submitError}</p>
+          <p className="text-alert font-mono text-xs" role="alert">{submitError}</p>
         )}
 
-        <p className="font-body text-[12px] text-gray-600 leading-snug">
+        <p className="font-body text-[12px] text-muted leading-snug">
           Your phone number, location and message are shared only with the disaster-response team and the responders sent to
           help you. / आपका नंबर और लोकेशन केवल बचाव दल के साथ साझा किया जाता है।
         </p>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100 space-y-2" style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-surface-1 border-t border-border-dim space-y-2" style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
         {showSmsFallback && (
           <button
             type="button"
             onClick={sendViaSms}
-            className="w-full text-center font-display font-semibold text-base uppercase tracking-[0.15em] text-white bg-red-500 py-3 px-6 hover:bg-red-600 active:scale-[0.98] rounded-sm"
+            className="w-full text-center font-display font-semibold text-base uppercase tracking-[0.15em] text-on-accent bg-alert py-3 px-6 hover:bg-alert/90 active:scale-[0.98] rounded-sm"
           >
             📱 SEND BY SMS INSTEAD
           </button>
@@ -526,7 +526,7 @@ export default function ReportForm({ type }: { type: Situation }) {
           type="button"
           onClick={handleSubmit}
           disabled={!phone.trim() || !hasLocation || loading}
-          className="w-full text-center font-display font-semibold text-base uppercase tracking-[0.15em] text-white bg-orange py-3.5 px-6 transition-opacity hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-sm"
+          className="w-full text-center font-display font-semibold text-base uppercase tracking-[0.15em] text-on-accent bg-orange py-3.5 px-6 transition-opacity hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-sm"
         >
           {loading ? (
             <>

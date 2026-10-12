@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { LocationProvider } from '@/components/volunteer/LocationProvider';
 import { VolunteerSessionProvider, useVolunteerSession } from '@/components/volunteer/VolunteerSessionProvider';
+import Wordmark from '@/components/ui/Wordmark';
 import { formatCountdown, useNow } from '@/hooks/useNow';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
@@ -194,18 +195,13 @@ function VolunteerShell({ children }: { children: React.ReactNode }) {
   const countdown = formatCountdown(activeAssignment?.timer, now);
 
   return (
-    <div className="min-h-screen bg-[#FFFFFF] flex flex-col">
-      <div className="h-10 bg-[#FAFBFC] border-b border-[rgba(0,0,0,0.08)] flex items-center justify-between px-4">
-        <span className="font-[family-name:var(--font-mono)] text-[11px] text-[#5A6270] tracking-wider w-16">{clock}</span>
-        <Link
-          href="/volunteer/missions"
-          className="font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.15em]"
-          aria-label="RescueGrid missions"
-        >
-          <span className="text-[#1A1D21]">RESCUE</span>
-          <span className="text-[#C44A12]">GRID</span>
+    <div className="min-h-screen bg-void flex flex-col">
+      <div className="h-10 bg-surface-1 border-b border-border-dim flex items-center justify-between px-4">
+        <span className="font-mono text-[11px] text-dim tracking-wider w-16">{clock}</span>
+        <Link href="/volunteer/missions" aria-label="RescueGrid missions">
+          <Wordmark size="xs" />
         </Link>
-        <span className={`w-16 text-right font-mono text-[9px] uppercase tracking-wider ${isOnline ? 'text-[#1E8449]' : 'text-[#D32F2F]'}`}>
+        <span className={`w-16 text-right font-mono text-[9px] uppercase tracking-wider ${isOnline ? 'text-ops' : 'text-alert'}`}>
           {isOnline ? '● Online' : '● Offline'}
         </span>
       </div>
@@ -213,17 +209,17 @@ function VolunteerShell({ children }: { children: React.ReactNode }) {
       {activeAssignment && pathname !== '/volunteer/active' && (
         <Link
           href="/volunteer/active"
-          className="bg-[#C44A12] text-white flex items-center justify-between px-4 h-11 hover:bg-[#C44A12]/90 transition-colors cursor-pointer"
+          className="bg-orange text-on-accent flex items-center justify-between px-4 h-11 hover:bg-orange/90 transition-colors cursor-pointer"
         >
           <div className="flex items-center gap-2 min-w-0">
-            <div className="w-2 h-2 bg-white rounded-full animate-pulse shrink-0" />
-            <span className="font-[family-name:var(--font-display)] text-[13px] font-semibold uppercase tracking-wide truncate">
+            <div className="w-2 h-2 bg-surface-1 rounded-full animate-pulse shrink-0" />
+            <span className="font-display text-[13px] font-semibold uppercase tracking-wide truncate">
               {activeAssignment.task}
             </span>
           </div>
           <div className="flex items-center gap-3 shrink-0">
             {countdown && (
-              <span className="font-[family-name:var(--font-mono)] text-[11px] text-white/80">
+              <span className="font-mono text-[11px] text-on-accent/80">
                 {countdown}
               </span>
             )}
@@ -236,7 +232,7 @@ function VolunteerShell({ children }: { children: React.ReactNode }) {
 
       <main className={`flex-1 overflow-y-auto ${fullBleed ? '' : 'pb-20'}`}>{children}</main>
 
-      <nav className="fixed bottom-0 left-0 right-0 h-[68px] bg-white border-t border-[rgba(0,0,0,0.08)] flex items-stretch shadow-[0_-4px_20px_rgba(0,0,0,0.08)] z-40" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <nav className="fixed bottom-0 left-0 right-0 h-[68px] bg-surface-1/90 backdrop-blur-md border-t border-border-dim flex items-stretch shadow-[0_-8px_24px_rgba(0,0,0,0.45)] z-40" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         {tabs.map((tab) => {
           const active = isActive(tab.href);
           return (
@@ -245,27 +241,27 @@ function VolunteerShell({ children }: { children: React.ReactNode }) {
               href={tab.href}
               aria-current={active ? 'page' : undefined}
               className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all relative ${
-                active ? 'text-[#C44A12]' : 'text-[#5A6270]'
+                active ? 'text-orange' : 'text-dim'
               }`}
             >
               {active && (
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-[#C44A12] rounded-full" />
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-orange rounded-full" />
               )}
 
               <div className="relative">
                 {tab.icon}
                 {tab.badge && (
-                  <span className={`absolute -top-1 -right-2 min-w-[16px] h-4 px-0.5 flex items-center justify-center text-[9px] font-[family-name:var(--font-mono)] font-bold rounded-full ${
+                  <span className={`absolute -top-1 -right-2 min-w-[16px] h-4 px-0.5 flex items-center justify-center text-[9px] font-mono font-bold rounded-full ${
                     tab.badgeType === 'live'
-                      ? 'text-[#1E8449] animate-pulse'
-                      : 'bg-[#C44A12] text-white'
+                      ? 'text-ops animate-pulse'
+                      : 'bg-orange text-on-accent'
                   }`}>
                     {tab.badge}
                   </span>
                 )}
               </div>
 
-              <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-wider">{tab.label}</span>
+              <span className="font-mono text-[10px] uppercase tracking-wider">{tab.label}</span>
             </Link>
           );
         })}
@@ -279,7 +275,7 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
 
   // Login pages render bare: no session, GPS tracking or navigation yet.
   if (AUTH_PAGES.includes(pathname)) {
-    return <div className="min-h-screen bg-white">{children}</div>;
+    return <div className="min-h-screen bg-void">{children}</div>;
   }
 
   return (

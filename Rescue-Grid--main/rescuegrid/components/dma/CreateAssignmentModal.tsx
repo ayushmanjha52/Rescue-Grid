@@ -412,7 +412,7 @@ export default function CreateAssignmentModal({ linkedReportId, presetVolunteer,
                 resetPaging();
               }}
               className={`px-2 py-1 font-mono text-[9px] uppercase transition-colors ${
-                volunteerStatusFilter === opt.value ? "bg-orange text-white" : "bg-surface-4 text-dim hover:text-ink"
+                volunteerStatusFilter === opt.value ? "bg-orange text-on-accent" : "bg-surface-4 text-dim hover:text-ink"
               }`}
             >
               {opt.label}
@@ -433,7 +433,7 @@ export default function CreateAssignmentModal({ linkedReportId, presetVolunteer,
                 resetPaging();
               }}
               className={`px-2 py-0.5 font-mono text-[9px] uppercase transition-colors ${
-                selectedSkills.includes(skill.code) ? "bg-ops text-white" : "bg-surface-4 text-dim hover:text-ink"
+                selectedSkills.includes(skill.code) ? "bg-ops text-on-accent" : "bg-surface-4 text-dim hover:text-ink"
               }`}
             >
               {skill.name}
@@ -454,7 +454,7 @@ export default function CreateAssignmentModal({ linkedReportId, presetVolunteer,
                 resetPaging();
               }}
               className={`px-2 py-0.5 font-mono text-[9px] uppercase transition-colors ${
-                selectedEquipment.includes(eq.value) ? "bg-ops text-white" : "bg-surface-4 text-dim hover:text-ink"
+                selectedEquipment.includes(eq.value) ? "bg-ops text-on-accent" : "bg-surface-4 text-dim hover:text-ink"
               }`}
             >
               {eq.label}
@@ -506,7 +506,7 @@ export default function CreateAssignmentModal({ linkedReportId, presetVolunteer,
 
           <div className="space-y-5">
             <div>
-              <label htmlFor="assignment-task" className="font-mono text-[10px] text-orange uppercase tracking-[0.2em] block mb-1">
+              <label htmlFor="assignment-task" className="font-mono text-[10px] text-muted uppercase tracking-[0.14em] block mb-1">
                 TASK DESCRIPTION *
               </label>
               <textarea
@@ -521,7 +521,7 @@ export default function CreateAssignmentModal({ linkedReportId, presetVolunteer,
             </div>
 
             <div className="relative">
-              <label htmlFor="assignment-location" className="font-mono text-[10px] text-orange uppercase tracking-[0.2em] block mb-1">
+              <label htmlFor="assignment-location" className="font-mono text-[10px] text-muted uppercase tracking-[0.14em] block mb-1">
                 LOCATION *
               </label>
               <div className="relative">
@@ -657,7 +657,7 @@ export default function CreateAssignmentModal({ linkedReportId, presetVolunteer,
                           onClick={() => setShowFilters(!showFilters)}
                           aria-expanded={showFilters}
                           className={`px-3 py-2 font-mono text-[11px] uppercase tracking-wider transition-colors ${
-                            showFilters ? "bg-orange text-white" : "bg-surface-3 text-dim hover:text-ink"
+                            showFilters ? "bg-orange text-on-accent" : "bg-surface-3 text-dim hover:text-ink"
                           }`}
                         >
                           ⚙ Filters {filtersActive > 0 && `(${filtersActive})`}
@@ -808,7 +808,7 @@ export default function CreateAssignmentModal({ linkedReportId, presetVolunteer,
                         <button
                           type="button"
                           onClick={() => setShowFilters(!showFilters)}
-                          className={`px-3 py-2 font-mono text-[11px] uppercase ${showFilters ? "bg-orange text-white" : "bg-surface-4 text-dim"}`}
+                          className={`px-3 py-2 font-mono text-[11px] uppercase ${showFilters ? "bg-orange text-on-accent" : "bg-surface-4 text-dim"}`}
                         >
                           ⚙ {filtersActive > 0 ? `(${filtersActive})` : ""}
                         </button>
@@ -842,7 +842,7 @@ export default function CreateAssignmentModal({ linkedReportId, presetVolunteer,
                               >
                                 <div className="flex items-center gap-2">
                                   <div className={`w-5 h-5 border ${isSelected ? "border-ops bg-ops" : "border-border-dim"} flex items-center justify-center`}>
-                                    {isSelected && <span className="text-white text-[10px]">✓</span>}
+                                    {isSelected && <span className="text-on-accent text-[10px]">✓</span>}
                                   </div>
                                   <div>
                                     <div className="font-body text-[12px] text-ink">{vol.name}</div>
@@ -879,7 +879,7 @@ export default function CreateAssignmentModal({ linkedReportId, presetVolunteer,
             </div>
 
             <div>
-              <label htmlFor="assignment-deadline" className="font-mono text-[10px] text-orange uppercase tracking-[0.2em] block mb-1">
+              <label htmlFor="assignment-deadline" className="font-mono text-[10px] text-muted uppercase tracking-[0.14em] block mb-1">
                 DEADLINE (optional)
               </label>
               <input
@@ -893,7 +893,7 @@ export default function CreateAssignmentModal({ linkedReportId, presetVolunteer,
             </div>
 
             <div>
-              <label htmlFor="assignment-report" className="font-mono text-[10px] text-orange uppercase tracking-[0.2em] block mb-1">
+              <label htmlFor="assignment-report" className="font-mono text-[10px] text-muted uppercase tracking-[0.14em] block mb-1">
                 LINKED REPORT (optional)
               </label>
               <select

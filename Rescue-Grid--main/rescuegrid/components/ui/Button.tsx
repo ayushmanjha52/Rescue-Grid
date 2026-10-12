@@ -10,11 +10,11 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantStyles: Record<ButtonVariant, string> = {
-  primary: "bg-orange text-white border-none hover:bg-orange/90 active:scale-[0.98]",
+  primary: "bg-orange text-on-accent border-none hover:bg-orange/90 active:scale-[0.98]",
   secondary: "bg-transparent text-orange border-2 border-orange hover:bg-orange/5 active:scale-[0.98]",
   ghost: "bg-surface-2 text-ink border border-border-dim hover:bg-surface-3 hover:border-border active:scale-[0.98]",
   danger: "bg-transparent text-alert border-2 border-alert hover:bg-alert/5 active:scale-[0.98]",
-  critical: "bg-alert text-white border-none hover:bg-alert/90 active:scale-[0.98] animate-critical-pulse shadow-lg shadow-alert/30",
+  critical: "bg-alert text-on-accent border-none hover:bg-alert/90 active:scale-[0.98] animate-critical-pulse shadow-lg shadow-alert/30",
   outline: "bg-transparent text-orange border border-orange hover:bg-orange/5 active:scale-[0.98]",
 };
 

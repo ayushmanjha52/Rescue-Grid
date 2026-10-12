@@ -33,7 +33,7 @@ export default function HelplineLink({
         {children}
       </a>
       {hint && (
-        <p className="mt-2 text-center font-body text-[13px] text-gray-700" role="status">
+        <p className="mt-2 text-center font-body text-[13px] text-muted" role="status">
           Calls work from a phone. Dial <strong>{HELPLINE_NUMBER}</strong> from your mobile.
           <br />
           फ़ोन से <strong>{HELPLINE_NUMBER}</strong> पर कॉल करें।

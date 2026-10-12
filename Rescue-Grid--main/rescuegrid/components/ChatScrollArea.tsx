@@ -101,14 +101,14 @@ export default function ChatScrollArea({
     <div className="flex items-center justify-center h-full">
       <div className="flex flex-col items-center gap-2">
         <div className="w-6 h-6 border-2 border-orange border-t-transparent rounded-full animate-spin" />
-        <span className="font-mono text-[10px] text-gray-500">LOADING...</span>
+        <span className="font-mono text-[10px] text-dim">LOADING...</span>
       </div>
     </div>
   );
 
   return (
     <div
-      className={`relative flex flex-col bg-white ${className}`}
+      className={`relative flex flex-col bg-surface-1 ${className}`}
       style={{ height: '100dvh', overflow: 'hidden' }}
     >
       <div className="flex-shrink-0">
@@ -130,7 +130,7 @@ export default function ChatScrollArea({
             scrollToBottom('smooth');
             resetNewMessagesCount();
           }}
-          className="absolute bottom-32 left-1/2 -translate-x-1/2 bg-orange text-white px-4 py-2 rounded-full font-mono text-[11px] font-bold shadow-lg flex items-center gap-2 z-10"
+          className="absolute bottom-32 left-1/2 -translate-x-1/2 bg-orange text-on-accent px-4 py-2 rounded-full font-mono text-[11px] font-bold shadow-lg flex items-center gap-2 z-10"
         >
           ↓ {newMessagesCount} new message{newMessagesCount > 1 ? 's' : ''}
         </button>

@@ -67,21 +67,21 @@ interface Criticality {
 function criticalityOf(v: { status: string; current_mission: { urgency: string | null } | null }): Criticality {
   const urgency = v.current_mission?.urgency;
   if (v.current_mission && urgency === "critical") {
-    return { rank: 0, label: "🔴 Critical mission", chip: "bg-red-50 text-red-700 border border-red-200", border: "border-l-red-600" };
+    return { rank: 0, label: "🔴 Critical mission", chip: "bg-alert/10 text-alert border border-alert/35", border: "border-l-red-600" };
   }
   if (v.current_mission && urgency === "urgent") {
-    return { rank: 1, label: "🟠 Urgent mission", chip: "bg-orange-50 text-orange-700 border border-orange-200", border: "border-l-orange" };
+    return { rank: 1, label: "🟠 Urgent mission", chip: "bg-orange/10 text-orange border border-orange/35", border: "border-l-orange" };
   }
   if (v.current_mission) {
-    return { rank: 2, label: "🟡 On mission", chip: "bg-amber-50 text-amber-800 border border-amber-200", border: "border-l-amber-500" };
+    return { rank: 2, label: "🟡 On mission", chip: "bg-caution/10 text-caution border border-caution/35", border: "border-l-amber-500" };
   }
   if (v.status === "active") {
-    return { rank: 3, label: "🟢 Available now", chip: "bg-green-50 text-green-700 border border-green-200", border: "border-l-green-600" };
+    return { rank: 3, label: "🟢 Available now", chip: "bg-ops/10 text-ops border border-ops/35", border: "border-l-green-600" };
   }
   if (v.status === "standby") {
-    return { rank: 4, label: "Standby", chip: "bg-gray-50 text-gray-600 border border-gray-200", border: "border-l-gray-400" };
+    return { rank: 4, label: "Standby", chip: "bg-surface-2 text-muted border border-border-dim", border: "border-l-gray-400" };
   }
-  return { rank: 5, label: "Offline", chip: "bg-gray-50 text-gray-500 border border-gray-200", border: "border-l-gray-300" };
+  return { rank: 5, label: "Offline", chip: "bg-surface-2 text-dim border border-border-dim", border: "border-l-gray-300" };
 }
 
 function badgeFor(status: string) {
@@ -97,7 +97,7 @@ function isFilter(value: string | null): value is Filter {
 
 export default function VolunteersPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-gray-50" />}>
+    <Suspense fallback={<div className="min-h-screen bg-surface-2" />}>
       <VolunteersContent />
     </Suspense>
   );
@@ -271,14 +271,14 @@ function VolunteersContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-surface-2">
       <div className="pt-[52px] p-6 max-w-6xl mx-auto">
         <div className="flex items-start justify-between gap-4 mb-6 mt-6 flex-wrap">
           <div>
-            <h1 className="font-inter text-[28px] font-bold uppercase tracking-wide text-gray-900">VOLUNTEERS</h1>
-            <p className="font-ibm-mono text-[11px] text-gray-500 uppercase tracking-wider mt-1">
+            <h1 className="font-inter text-[28px] font-bold uppercase tracking-wide text-ink">VOLUNTEERS</h1>
+            <p className="font-ibm-mono text-[11px] text-dim uppercase tracking-wider mt-1">
               {counts.all} REGISTERED · {counts.available} AVAILABLE · {counts["on-mission"]} ON MISSION
-              {counts.critical > 0 && <span className="text-red-700"> · {counts.critical} ON CRITICAL/URGENT MISSIONS</span>}
+              {counts.critical > 0 && <span className="text-alert"> · {counts.critical} ON CRITICAL/URGENT MISSIONS</span>}
               {counts.new > 0 && <span className="text-orange"> · {counts.new} NEW IN 48H</span>}
             </p>
           </div>
@@ -290,8 +290,8 @@ function VolunteersContent() {
           </div>
         </div>
 
-        <div className="mb-4 p-3 bg-white border border-gray-100 rounded-sm font-inter text-[12px] text-gray-600 leading-relaxed">
-          <strong className="text-gray-900">Bringing in new volunteers:</strong> share the join link (or the “Join as a volunteer” button on the public
+        <div className="mb-4 p-3 bg-surface-1 border border-border-dim rounded-sm font-inter text-[12px] text-muted leading-relaxed">
+          <strong className="text-ink">Bringing in new volunteers:</strong> share the join link (or the “Join as a volunteer” button on the public
           page). People sign up with their phone number, add their skills, and appear here marked <span className="text-orange font-semibold">NEW</span>.
           For people without a smartphone, use <em>Register walk-in</em>, then assign tasks and call them. Log their progress from the Missions page.
         </div>
@@ -305,19 +305,19 @@ function VolunteersContent() {
                 aria-selected={filter === key}
                 onClick={() => setFilter(key)}
                 className={`px-3 py-1.5 font-ibm-mono text-[10px] uppercase tracking-wider border rounded-sm transition-colors ${
-                  filter === key ? "bg-orange text-white border-orange" : "bg-white border-gray-200 text-gray-500 hover:border-orange"
+                  filter === key ? "bg-orange text-on-accent border-orange" : "bg-surface-1 border-border-dim text-dim hover:border-orange"
                 }`}
               >
                 {label} ({counts[key]})
               </button>
             ))}
           </div>
-          <label className="flex items-center gap-1.5 font-ibm-mono text-[10px] uppercase tracking-wider text-gray-600">
+          <label className="flex items-center gap-1.5 font-ibm-mono text-[10px] uppercase tracking-wider text-muted">
             Sort
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value as Sort)}
-              className="px-2 py-1.5 bg-white border border-gray-200 rounded-sm font-inter text-[12px] normal-case tracking-normal text-gray-900 focus:outline-none focus:border-orange"
+              className="px-2 py-1.5 bg-surface-1 border border-border-dim rounded-sm font-inter text-[12px] normal-case tracking-normal text-ink focus:outline-none focus:border-orange"
             >
               <option value="criticality">Most critical first</option>
               <option value="newest">Newest first</option>
@@ -329,21 +329,21 @@ function VolunteersContent() {
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search name, phone, skill, equipment…"
             aria-label="Search volunteers"
-            className="flex-1 min-w-[220px] px-3 py-1.5 bg-white border border-gray-200 rounded-sm font-inter text-[13px] focus:outline-none focus:border-orange"
+            className="flex-1 min-w-[220px] px-3 py-1.5 bg-surface-1 border border-border-dim rounded-sm font-inter text-[13px] focus:outline-none focus:border-orange"
           />
         </div>
 
-        {flash && <p className="mb-3 font-ibm-mono text-[11px] text-green-700" role="status">{flash}</p>}
-        {loadError && <p className="mb-3 font-ibm-mono text-[11px] text-red-600" role="alert">{loadError}</p>}
+        {flash && <p className="mb-3 font-ibm-mono text-[11px] text-ops" role="status">{flash}</p>}
+        {loadError && <p className="mb-3 font-ibm-mono text-[11px] text-alert" role="alert">{loadError}</p>}
 
         {loading ? (
           <div className="space-y-2">
-            {[1, 2, 3, 4].map((i) => <div key={i} className="h-20 bg-white border border-gray-100 animate-pulse" />)}
+            {[1, 2, 3, 4].map((i) => <div key={i} className="h-20 bg-surface-1 border border-border-dim animate-pulse" />)}
           </div>
         ) : visible.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="text-[48px] mb-4 opacity-40">🙋</div>
-            <p className="font-inter text-[13px] text-gray-500 uppercase tracking-wider">
+            <p className="font-inter text-[13px] text-dim uppercase tracking-wider">
               {search ? "NO VOLUNTEERS MATCH" : filter === "new" ? "NO NEW VOLUNTEERS IN THE LAST 48 HOURS" : "NO VOLUNTEERS HERE"}
             </p>
           </div>
@@ -360,35 +360,35 @@ function VolunteersContent() {
               return (
                 <div
                   key={v.id}
-                  className={`bg-white border border-gray-100 border-l-4 rounded-sm shadow-sm p-4 ${crit.border}`}
+                  className={`bg-surface-1 border border-border-dim border-l-4 rounded-sm shadow-sm p-4 ${crit.border}`}
                 >
                   <div className="flex items-start gap-4 flex-wrap">
-                    <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center font-inter text-[14px] font-bold text-orange shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-surface-3 flex items-center justify-center font-inter text-[14px] font-bold text-orange shrink-0">
                       {v.name.charAt(0).toUpperCase()}
                     </div>
 
                     <div className="flex-1 min-w-[220px]">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-inter text-[14px] font-semibold text-gray-900">{v.name}</span>
+                        <span className="font-inter text-[14px] font-semibold text-ink">{v.name}</span>
                         <span className={`px-1.5 py-0.5 font-ibm-mono text-[10px] font-semibold uppercase rounded-sm ${crit.chip}`}>{crit.label}</span>
-                        {isNew && <span className="px-1.5 py-0.5 bg-orange text-white font-ibm-mono text-[9px] uppercase rounded-sm">New</span>}
+                        {isNew && <span className="px-1.5 py-0.5 bg-orange text-on-accent font-ibm-mono text-[9px] uppercase rounded-sm">New</span>}
                         <StatusBadge status={badge.status} label={badge.label} size="sm" />
-                        <span className="font-ibm-mono text-[10px] text-gray-500 uppercase">{v.type || "Individual"}</span>
+                        <span className="font-ibm-mono text-[10px] text-dim uppercase">{v.type || "Individual"}</span>
                         {!v.has_app ? (
-                          <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 font-ibm-mono text-[9px] uppercase rounded-sm" title="Hasn't used the volunteer app yet — reach them by phone">
+                          <span className="px-1.5 py-0.5 bg-surface-3 text-muted font-ibm-mono text-[9px] uppercase rounded-sm" title="Hasn't used the volunteer app yet — reach them by phone">
                             📵 Not on app — call
                           </span>
                         ) : !v.has_push ? (
-                          <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 font-ibm-mono text-[9px] uppercase rounded-sm" title="Won't get push alerts for new missions">
+                          <span className="px-1.5 py-0.5 bg-caution/10 text-caution font-ibm-mono text-[9px] uppercase rounded-sm" title="Won't get push alerts for new missions">
                             🔕 Alerts off
                           </span>
                         ) : null}
                         {profileIncomplete && (
-                          <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 font-ibm-mono text-[9px] uppercase rounded-sm">Profile incomplete</span>
+                          <span className="px-1.5 py-0.5 bg-caution/10 text-caution font-ibm-mono text-[9px] uppercase rounded-sm">Profile incomplete</span>
                         )}
                       </div>
 
-                      <div className="font-ibm-mono text-[10px] text-gray-500 mt-1 flex items-center gap-3 flex-wrap">
+                      <div className="font-ibm-mono text-[10px] text-dim mt-1 flex items-center gap-3 flex-wrap">
                         <a href={`tel:${v.mobile_no}`} className="text-orange hover:underline">📞 {v.mobile_no}</a>
                         {v.has_app && <span>📡 seen {v.last_seen ? formatRelative(v.last_seen, now) || "—" : "never"}</span>}
                         {v.created_at && <span>joined {formatRelative(v.created_at, now)}</span>}
@@ -397,10 +397,10 @@ function VolunteersContent() {
                       {(skills.length > 0 || v.equipment) && (
                         <div className="flex flex-wrap gap-1 mt-2">
                           {skills.slice(0, 6).map((s) => (
-                            <span key={s} className="px-1.5 py-0.5 bg-green-50 text-green-700 font-ibm-mono text-[9px] uppercase rounded-sm">{s}</span>
+                            <span key={s} className="px-1.5 py-0.5 bg-ops/10 text-ops font-ibm-mono text-[9px] uppercase rounded-sm">{s}</span>
                           ))}
                           {parseList(v.equipment).slice(0, 4).map((e) => (
-                            <span key={e} className="px-1.5 py-0.5 bg-blue-50 text-blue-700 font-ibm-mono text-[9px] uppercase rounded-sm">{e}</span>
+                            <span key={e} className="px-1.5 py-0.5 bg-intel/10 text-intel font-ibm-mono text-[9px] uppercase rounded-sm">{e}</span>
                           ))}
                         </div>
                       )}
@@ -408,20 +408,20 @@ function VolunteersContent() {
 
                     <div className="w-full md:w-[300px] shrink-0 space-y-1.5">
                       {mission ? (
-                        <Link href={`/dma/assignments?open=${mission.id}`} className="block p-2 bg-amber-50 border border-amber-100 rounded-sm hover:border-amber-300">
-                          <div className="font-ibm-mono text-[9px] text-amber-700 uppercase">
+                        <Link href={`/dma/assignments?open=${mission.id}`} className="block p-2 bg-caution/10 border border-caution/25 rounded-sm hover:border-caution/50">
+                          <div className="font-ibm-mono text-[9px] text-caution uppercase">
                             {assignmentStatusLabel(mission.status)}
                             {mission.task_force_name && ` · ${mission.task_force_name}`}
                             {mission.updated_at && ` · ${formatRelative(mission.updated_at, now)}`}
                           </div>
-                          <div className="font-inter text-[12px] text-gray-900 line-clamp-1">{mission.task}</div>
+                          <div className="font-inter text-[12px] text-ink line-clamp-1">{mission.task}</div>
                         </Link>
                       ) : (
-                        <div className="p-2 bg-gray-50 border border-gray-100 rounded-sm font-ibm-mono text-[10px] text-gray-500 uppercase">No active mission</div>
+                        <div className="p-2 bg-surface-2 border border-border-dim rounded-sm font-ibm-mono text-[10px] text-dim uppercase">No active mission</div>
                       )}
                       {v.last_message && (
-                        <p className="font-inter text-[11px] text-gray-600 line-clamp-2" title={v.last_message.content}>
-                          <span className="font-ibm-mono text-[9px] text-gray-500 uppercase">
+                        <p className="font-inter text-[11px] text-muted line-clamp-2" title={v.last_message.content}>
+                          <span className="font-ibm-mono text-[9px] text-dim uppercase">
                             last said {formatRelative(v.last_message.created_at, now)}:
                           </span>{" "}
                           {v.last_message.content}
@@ -441,14 +441,14 @@ function VolunteersContent() {
                       </Button>
                       <Link
                         href={`/dma/messages?volunteer=${v.id}`}
-                        className="px-3 py-1.5 text-center border border-gray-200 bg-white font-ibm-mono text-[10px] uppercase tracking-wider text-gray-600 hover:border-orange hover:text-orange rounded-sm"
+                        className="px-3 py-1.5 text-center border border-border-dim bg-surface-1 font-ibm-mono text-[10px] uppercase tracking-wider text-muted hover:border-orange hover:text-orange rounded-sm"
                       >
                         MESSAGE
                       </Link>
                       <button
                         type="button"
                         onClick={() => void resetPin(v)}
-                        className="px-3 py-1.5 text-center border border-gray-200 bg-white font-ibm-mono text-[10px] uppercase tracking-wider text-gray-600 hover:border-orange hover:text-orange rounded-sm"
+                        className="px-3 py-1.5 text-center border border-border-dim bg-surface-1 font-ibm-mono text-[10px] uppercase tracking-wider text-muted hover:border-orange hover:text-orange rounded-sm"
                         title="Give this volunteer a new temporary PIN (forgotten PIN)"
                       >
                         RESET PIN

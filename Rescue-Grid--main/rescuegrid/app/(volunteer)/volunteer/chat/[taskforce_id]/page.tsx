@@ -334,7 +334,7 @@ export default function TaskForceChatPage() {
 
                       <div
                         className={`relative px-4 py-2.5 ${
-                          isDMA ? 'bg-orange text-white' : isOwn ? 'bg-surface-4 text-ink' : 'bg-surface-3 text-ink'
+                          isDMA ? 'bg-orange text-on-accent' : isOwn ? 'bg-surface-4 text-ink' : 'bg-surface-3 text-ink'
                         }`}
                         style={{
                           clipPath: isOwn
@@ -406,7 +406,7 @@ export default function TaskForceChatPage() {
                 disabled={sending || !newMessage.trim()}
                 aria-label="Send"
                 className={`w-12 h-12 flex items-center justify-center transition-all ${
-                  newMessage.trim() ? 'bg-orange text-white hover:bg-orange/90' : 'bg-surface-3 text-dim'
+                  newMessage.trim() ? 'bg-orange text-on-accent hover:bg-orange/90' : 'bg-surface-3 text-dim'
                 }`}
                 style={{ clipPath: 'polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%)' }}
               >

@@ -12,15 +12,15 @@ export default function ErrorPage({ error, reset }: { error: Error & { digest?: 
   }, [error]);
 
   return (
-    <main className="min-h-screen bg-white flex flex-col items-center justify-center px-4 text-center">
-      <h1 className="font-inter text-[20px] font-semibold text-gray-900 mb-2">Something went wrong</h1>
-      <p className="font-inter text-[14px] text-gray-600 max-w-sm mb-8">
+    <main className="min-h-screen bg-void flex flex-col items-center justify-center px-4 text-center">
+      <h1 className="font-inter text-[20px] font-semibold text-ink mb-2">Something went wrong</h1>
+      <p className="font-inter text-[14px] text-muted max-w-sm mb-8">
         Please try again. If you need help urgently, call the helpline or send an SOS by SMS.
         <br />
         कृपया फिर से प्रयास करें। तुरंत मदद के लिए हेल्पलाइन पर कॉल करें।
       </p>
       <div className="flex flex-col gap-3 w-full max-w-xs">
-        <button onClick={reset} className="py-3 bg-orange text-white font-ibm-mono text-[13px] uppercase tracking-[0.15em] rounded-sm">
+        <button onClick={reset} className="py-3 bg-orange text-on-accent font-ibm-mono text-[13px] uppercase tracking-[0.15em] rounded-sm">
           Try again
         </button>
         <a
@@ -29,7 +29,7 @@ export default function ErrorPage({ error, reset }: { error: Error & { digest?: 
         >
           📞 Call {HELPLINE_NUMBER}
         </a>
-        <Link href="/" className="font-ibm-mono text-[12px] text-gray-600 underline">
+        <Link href="/" className="font-ibm-mono text-[12px] text-muted underline">
           Back to home
         </Link>
       </div>

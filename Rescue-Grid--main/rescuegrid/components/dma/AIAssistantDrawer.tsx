@@ -199,15 +199,15 @@ export function AIAssistantDrawer({ isOpen, onClose }: AIAssistantDrawerProps) {
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
-            className="fixed top-[52px] right-0 bottom-0 w-[380px] max-w-full bg-white border-l border-border-dim z-50 flex flex-col shadow-2xl"
+            className="fixed top-[52px] right-0 bottom-0 w-[380px] max-w-full bg-surface-1 border-l border-border-dim z-50 flex flex-col shadow-2xl"
             role="dialog"
             aria-label="DRIS Intelligence assistant"
           >
-            <header className="flex items-center justify-between px-4 py-3 border-b border-border-dim bg-gradient-to-r from-white to-gray-50">
+            <header className="flex items-center justify-between px-4 py-3 border-b border-border-dim bg-gradient-to-r from-white to-surface-2">
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setShowSessions(!showSessions)}
-                  className="p-1.5 hover:bg-gray-100 rounded-sm transition-colors"
+                  className="p-1.5 hover:bg-surface-3 rounded-sm transition-colors"
                   title={showSessions ? 'Hide briefings' : 'Show briefings'}
                   aria-label={showSessions ? 'Hide briefings' : 'Show briefings'}
                 >
@@ -225,7 +225,7 @@ export function AIAssistantDrawer({ isOpen, onClose }: AIAssistantDrawerProps) {
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => void createNewSession()}
-                  className="p-1.5 hover:bg-gray-100 rounded-sm transition-colors"
+                  className="p-1.5 hover:bg-surface-3 rounded-sm transition-colors"
                   title="New Briefing"
                   aria-label="New briefing"
                 >
@@ -233,7 +233,7 @@ export function AIAssistantDrawer({ isOpen, onClose }: AIAssistantDrawerProps) {
                 </button>
                 <button
                   onClick={onClose}
-                  className="p-1.5 hover:bg-gray-100 rounded-sm transition-colors"
+                  className="p-1.5 hover:bg-surface-3 rounded-sm transition-colors"
                   aria-label="Close assistant"
                 >
                   <X className="w-4 h-4 text-dim" />
@@ -249,7 +249,7 @@ export function AIAssistantDrawer({ isOpen, onClose }: AIAssistantDrawerProps) {
                     animate={{ width: 180, opacity: 1 }}
                     exit={{ width: 0, opacity: 0 }}
                     transition={{ duration: 0.15 }}
-                    className="border-r border-border-dim bg-gray-50/50 overflow-hidden flex flex-col"
+                    className="border-r border-border-dim bg-surface-2/50 overflow-hidden flex flex-col"
                   >
                     <div className="p-3 flex-1 overflow-y-auto">
                       <h3 className="font-mono text-[9px] font-bold text-dim uppercase tracking-wider mb-3">
@@ -265,7 +265,7 @@ export function AIAssistantDrawer({ isOpen, onClose }: AIAssistantDrawerProps) {
                               className={`group p-2 rounded-sm transition-all border ${
                                 currentSessionId === session.id
                                   ? 'bg-orange/10 border-orange/20'
-                                  : 'hover:bg-white border-transparent'
+                                  : 'hover:bg-surface-1 border-transparent'
                               }`}
                             >
                               <button onClick={() => void loadSession(session.id)} className="w-full text-left">
@@ -294,8 +294,8 @@ export function AIAssistantDrawer({ isOpen, onClose }: AIAssistantDrawerProps) {
               <div className="flex-1 flex flex-col min-w-0">
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
                   {error && (
-                    <div className="p-3 bg-red-50 border border-red-100 rounded-sm" role="alert">
-                      <p className="font-mono text-[11px] text-red-600">{error}</p>
+                    <div className="p-3 bg-alert/10 border border-alert/25 rounded-sm" role="alert">
+                      <p className="font-mono text-[11px] text-alert">{error}</p>
                     </div>
                   )}
 
@@ -338,7 +338,7 @@ export function AIAssistantDrawer({ isOpen, onClose }: AIAssistantDrawerProps) {
                             className={`flex gap-3 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
                           >
                             <div className={`w-7 h-7 rounded-sm flex items-center justify-center shrink-0 ${
-                              message.role === 'user' ? 'bg-orange text-white' : 'bg-gray-100 text-dim'
+                              message.role === 'user' ? 'bg-orange text-on-accent' : 'bg-surface-3 text-dim'
                             }`}>
                               {message.role === 'user' ? (
                                 <span className="font-display text-[12px] font-bold">OP</span>
@@ -347,10 +347,10 @@ export function AIAssistantDrawer({ isOpen, onClose }: AIAssistantDrawerProps) {
                               )}
                             </div>
                             <div className={`max-w-[calc(100%-44px)] px-3 py-2 rounded-sm ${
-                              message.role === 'user' ? 'bg-orange text-white' : 'bg-gray-50 border border-border-dim'
+                              message.role === 'user' ? 'bg-orange text-on-accent' : 'bg-surface-2 border border-border-dim'
                             }`}>
                               <p className={`font-body text-[13px] leading-relaxed whitespace-pre-wrap break-words ${
-                                message.role === 'user' ? 'text-white' : 'text-ink'
+                                message.role === 'user' ? 'text-on-accent' : 'text-ink'
                               }`}>
                                 {message.content}
                               </p>
@@ -360,10 +360,10 @@ export function AIAssistantDrawer({ isOpen, onClose }: AIAssistantDrawerProps) {
                       )}
                       {waitingForFirstToken && (
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-3">
-                          <div className="w-7 h-7 rounded-sm bg-gray-100 flex items-center justify-center">
+                          <div className="w-7 h-7 rounded-sm bg-surface-3 flex items-center justify-center">
                             <Sparkles className="w-3.5 h-3.5 text-dim" />
                           </div>
-                          <div className="px-3 py-2 bg-gray-50 border border-border-dim rounded-sm">
+                          <div className="px-3 py-2 bg-surface-2 border border-border-dim rounded-sm">
                             <div className="flex gap-1">
                               <span className="w-1.5 h-1.5 bg-orange rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                               <span className="w-1.5 h-1.5 bg-orange rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -377,7 +377,7 @@ export function AIAssistantDrawer({ isOpen, onClose }: AIAssistantDrawerProps) {
                   <div ref={messagesEndRef} />
                 </div>
 
-                <div className="p-4 border-t border-border-dim bg-white">
+                <div className="p-4 border-t border-border-dim bg-surface-1">
                   <form onSubmit={handleSubmit} className="flex gap-2">
                     <input
                       ref={inputRef}
@@ -387,7 +387,7 @@ export function AIAssistantDrawer({ isOpen, onClose }: AIAssistantDrawerProps) {
                       disabled={isLoading}
                       maxLength={4000}
                       aria-label="Question for DRIS"
-                      className="flex-1 px-3 py-2.5 bg-gray-50 border border-border-dim rounded-sm font-body text-[13px] text-ink placeholder:text-dim focus:outline-none focus:border-orange/30 focus:ring-2 focus:ring-orange/10 disabled:opacity-50"
+                      className="flex-1 px-3 py-2.5 bg-surface-2 border border-border-dim rounded-sm font-body text-[13px] text-ink placeholder:text-dim focus:outline-none focus:border-orange/30 focus:ring-2 focus:ring-orange/10 disabled:opacity-50"
                     />
                     <Button
                       type="submit"

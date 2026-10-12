@@ -1,36 +1,33 @@
 import type { Metadata, Viewport } from "next";
-import { Barlow, Barlow_Condensed, JetBrains_Mono, Inter, IBM_Plex_Mono } from "next/font/google";
+import { Bricolage_Grotesque, Instrument_Sans, Instrument_Serif, IBM_Plex_Mono } from "next/font/google";
 import { SITE_URL } from "@/lib/config";
 import "./globals.css";
 
-const barlow = Barlow({
-  variable: "--font-body",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-});
-
-const barlowCondensed = Barlow_Condensed({
+// Headings: a grotesque with a hand-drawn edge.
+const display = Bricolage_Grotesque({
   variable: "--font-display",
   subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
 });
 
-const jetbrainsMono = JetBrains_Mono({
+// Body and UI text.
+const body = Instrument_Sans({
+  variable: "--font-body",
+  subsets: ["latin"],
+});
+
+// Italic accents (the "Grid" in the wordmark, pull quotes).
+const serif = Instrument_Serif({
+  variable: "--font-serif",
+  subsets: ["latin"],
+  weight: "400",
+  style: ["normal", "italic"],
+});
+
+// Labels, timestamps, IDs and other data.
+const mono = IBM_Plex_Mono({
   variable: "--font-mono",
   subsets: ["latin"],
-  weight: ["400", "500"],
-});
-
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
-});
-
-const ibmPlexMono = IBM_Plex_Mono({
-  variable: "--font-ibm-mono",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
 });
 
 const DESCRIPTION =
@@ -59,7 +56,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: "RescueGrid",
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
   },
   formatDetection: {
     telephone: false,
@@ -67,7 +64,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#C44A12",
+  themeColor: "#0B0B0D",
+  colorScheme: "dark",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -81,7 +79,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${barlow.variable} ${barlowCondensed.variable} ${jetbrainsMono.variable} ${inter.variable} ${ibmPlexMono.variable}`}
+      className={`${display.variable} ${body.variable} ${serif.variable} ${mono.variable}`}
     >
       <body className="min-h-full flex flex-col antialiased" suppressHydrationWarning>
         {children}

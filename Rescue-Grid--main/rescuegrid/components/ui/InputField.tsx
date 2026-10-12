@@ -12,7 +12,7 @@ const InputField = forwardRef<HTMLInputElement, InputFieldProps>(
       <div className="flex flex-col gap-1.5">
         <label
           htmlFor={inputId}
-          className="font-mono text-xs text-orange uppercase tracking-[0.2em] font-medium"
+          className="font-mono text-xs text-muted uppercase tracking-[0.14em] font-medium"
         >
           {label}
         </label>
@@ -21,10 +21,10 @@ const InputField = forwardRef<HTMLInputElement, InputFieldProps>(
           id={inputId}
           className={`
             w-full px-3 py-3
-            bg-gray-50 border border-gray-200 rounded-sm
-            font-body text-base text-gray-900
-            placeholder:text-gray-500
-            focus:outline-none focus:ring-2 focus:ring-orange/20 focus:border-orange focus:bg-white
+            bg-surface-2 border border-border-dim rounded-sm
+            font-body text-base text-ink
+            placeholder:text-dim
+            focus:outline-none focus:ring-2 focus:ring-orange/20 focus:border-orange focus:bg-surface-1
             transition-colors duration-150
             ${className}
           `}

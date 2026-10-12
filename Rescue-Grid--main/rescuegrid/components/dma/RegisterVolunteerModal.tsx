@@ -111,11 +111,11 @@ export default function RegisterVolunteerModal({ onClose, onRegistered }: Regist
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label htmlFor="walkin-name" className="font-mono text-[10px] text-orange uppercase tracking-[0.2em] block mb-1">NAME *</label>
+                <label htmlFor="walkin-name" className="font-mono text-[10px] text-muted uppercase tracking-[0.14em] block mb-1">NAME *</label>
                 <input id="walkin-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} placeholder="Full name" className={inputClass} />
               </div>
               <div>
-                <label htmlFor="walkin-phone" className="font-mono text-[10px] text-orange uppercase tracking-[0.2em] block mb-1">MOBILE *</label>
+                <label htmlFor="walkin-phone" className="font-mono text-[10px] text-muted uppercase tracking-[0.14em] block mb-1">MOBILE *</label>
                 <input id="walkin-phone" type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="98765 43210" className={inputClass} />
               </div>
             </div>
@@ -129,7 +129,7 @@ export default function RegisterVolunteerModal({ onClose, onRegistered }: Regist
                     type="button"
                     aria-pressed={type === t}
                     onClick={() => setType(t)}
-                    className={`px-2 py-1 font-mono text-[10px] uppercase ${type === t ? "bg-orange text-white" : "bg-surface-3 text-dim hover:text-ink"}`}
+                    className={`px-2 py-1 font-mono text-[10px] uppercase ${type === t ? "bg-orange text-on-accent" : "bg-surface-3 text-dim hover:text-ink"}`}
                   >
                     {t}
                   </button>
@@ -154,7 +154,7 @@ export default function RegisterVolunteerModal({ onClose, onRegistered }: Regist
                             aria-pressed={skillIds.includes(skill.id)}
                             onClick={() => setSkillIds((prev) => toggle(prev, skill.id))}
                             className={`px-2 py-0.5 font-mono text-[9px] uppercase ${
-                              skillIds.includes(skill.id) ? "bg-ops text-white" : "bg-surface-3 text-dim hover:text-ink"
+                              skillIds.includes(skill.id) ? "bg-ops text-on-accent" : "bg-surface-3 text-dim hover:text-ink"
                             }`}
                           >
                             {skill.name}
@@ -177,7 +177,7 @@ export default function RegisterVolunteerModal({ onClose, onRegistered }: Regist
                     aria-pressed={equipment.includes(option.label)}
                     onClick={() => setEquipment((prev) => toggle(prev, option.label))}
                     className={`px-2 py-0.5 font-mono text-[9px] uppercase ${
-                      equipment.includes(option.label) ? "bg-intel text-white" : "bg-surface-3 text-dim hover:text-ink"
+                      equipment.includes(option.label) ? "bg-intel text-on-accent" : "bg-surface-3 text-dim hover:text-ink"
                     }`}
                   >
                     {option.label}

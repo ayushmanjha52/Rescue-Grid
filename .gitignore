@@ -1,0 +1,6 @@
+# Local editor / assistant settings
+.claude/
+.vscode/
+.idea/
+CLAUDE.md
+AGENTS.md

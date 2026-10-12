@@ -131,7 +131,7 @@ function AssignmentsContent() {
               aria-selected={filter === key}
               onClick={() => setFilter(key)}
               className={`px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider border transition-colors ${
-                filter === key ? "bg-orange text-white border-orange" : "border-border-dim text-muted hover:border-orange"
+                filter === key ? "bg-orange text-on-accent border-orange" : "border-border-dim text-muted hover:border-orange"
               }`}
             >
               {label}

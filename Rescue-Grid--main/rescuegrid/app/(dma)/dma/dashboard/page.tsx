@@ -150,7 +150,7 @@ function DashboardContent() {
   }, []);
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-white overflow-hidden">
+    <div className="h-screen w-screen flex flex-col bg-surface-1 overflow-hidden">
       {/* Desktop: filters | map | details. Narrow screens: map, details, filters stacked and scrollable. */}
       <div className="flex flex-col lg:flex-row flex-1 mt-[52px] overflow-y-auto lg:overflow-hidden">
         <LeftSidebar
@@ -197,7 +197,7 @@ function DashboardContent() {
 export default function DmaDashboardPage() {
   return (
     <Suspense fallback={
-      <div className="h-screen w-screen flex items-center justify-center bg-white">
+      <div className="h-screen w-screen flex items-center justify-center bg-surface-1">
         <span className="font-mono text-[11px] text-dim uppercase tracking-wider">LOADING...</span>
       </div>
     }>

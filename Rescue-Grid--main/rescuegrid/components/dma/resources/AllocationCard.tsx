@@ -50,7 +50,7 @@ export default function AllocationCard({ allocation, onStatusUpdate, showActions
         : null;
 
   return (
-    <div className="bg-white border border-gray-100 p-4 clip-path-tactical-sm">
+    <div className="bg-surface-1 border border-border-dim p-4 clip-path-tactical-sm">
       <div className="flex justify-between items-start mb-2">
         <div>
           <h4 className="font-display font-semibold text-ink uppercase text-sm">{allocation.resource?.name || "Resource"}</h4>

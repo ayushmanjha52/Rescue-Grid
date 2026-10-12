@@ -1,0 +1,21 @@
+# Pings the live app's health check, which runs a small database query.
+# Supabase pauses free projects after a week without database activity, so a
+# few checks a day keep the demo online. The Vercel cron in vercel.json does
+# the same once a day as a backup.
+name: Keep database awake
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call /api/health
+        run: |
+          curl --fail --silent --show-error \
+            --retry 3 --retry-delay 20 --retry-all-errors --max-time 30 \
+            https://rescuegrid-india.vercel.app/api/health

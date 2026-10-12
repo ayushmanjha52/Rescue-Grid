@@ -16,7 +16,7 @@ const clusterLayer: LayerProps = {
   source: 'volunteers',
   filter: ['has', 'point_count'],
   paint: {
-    'circle-color': ['step', ['get', 'point_count'], '#4CAF50', 10, '#FF9800', 30, '#F44336'] as ExpressionSpecification,
+    'circle-color': ['step', ['get', 'point_count'], '#4ADE94', 10, '#F7B955', 30, '#FF6166'] as ExpressionSpecification,
     'circle-radius': ['step', ['get', 'point_count'], 20, 10, 26, 30, 32] as ExpressionSpecification,
     'circle-stroke-width': 2,
     'circle-stroke-color': '#ffffff',
@@ -65,9 +65,9 @@ const unclusteredLayer: LayerProps = {
   paint: {
     'circle-color': [
       'case',
-      ['==', ['get', 'status'], 'on-mission'], '#FF6B2B',
-      ['==', ['get', 'status'], 'standby'], '#F5A623',
-      '#2ECC71',
+      ['==', ['get', 'status'], 'on-mission'], '#FF7A3D',
+      ['==', ['get', 'status'], 'standby'], '#F7B955',
+      '#4ADE94',
     ] as ExpressionSpecification,
     'circle-radius': [
       'case',
